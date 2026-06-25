@@ -15,7 +15,8 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 - Next.js 16(App Router) · React 19 · Tailwind v4 · @dnd-kit(칸반) · @tanstack/react-table · Supabase(예정).
 - 명령: `npm run dev` / `npm run build` / `npm run lint`.
 - **데이터: Supabase 클라우드 연결됨(2026-06-25)**. 프로젝트 `seeding-ops`(ref `edfbpvmtcghflcqljpcp`, 서울), 별도 계정 `enometa@theframeless.co` org. 토큰·DB비번 = `~/.vault/zipiel/supabase-seeding.env`. 앱 연결값 = `.env.local`(gitignore, URL·anon·service key). `lib/queries.ts`가 fetch(env 없으면 `lib/data.ts` 목 폴백). 스키마 정본 = `db/migrations/` = `supabase/migrations/`. 스키마 변경 = `supabase db push`, 시드 = `supabase db reset --linked`.
-- **RLS 주의**: 전 테이블 RLS enabled·정책 미설정 → 현재 서버가 service key로 읽음(RLS 우회). 클라이언트 직접 쿼리 전에 read 정책 추가 필요. PII(이메일·주소) 최소권한 정책도.
+- **RLS**: 전 테이블 RLS enabled, 0002에서 authenticated read 정책 추가(anon 차단 유지). 현재 서버가 service key로 읽기·쓰기(RLS 우회). 인증·PII 최소권한 정책은 아직.
+- **실데이터 적재(2026-06-25)**: `scripts/etl_onair.py` = On-Air Sheet(진행중 협업) → 6테이블 정규화 투입(크리에이터 78·협업 79). 목 seed(`supabase/seed.sql`)를 덮어씀. 재적재 = `python scripts/etl_onair.py`(On-Air CSV는 gitignore된 `research/sheet-snapshot/`, PII는 repo 미포함). 매핑: IG→instagram·xhs→xiaohongshu·빈 status→In Discussion. ⚠️ 시트 status 미기입 多 → Negotiation 쏠림(운영팀 status 기입 필요). `db reset --linked`는 목으로 되돌아가니 실데이터는 ETL로 재적재.
 - 상태머신: `lib/types.ts`의 `STATUS_PHASE`(14상태 → 6페이즈). 현재 상태는 `collaborations` 본체, 전이는 `collaboration_status_history` append-only.
 
 ## 규칙
