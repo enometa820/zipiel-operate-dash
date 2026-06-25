@@ -1,0 +1,8 @@
+meta: {project: zipiel-operate-dash, updated: 2026-06-25, schema_version: 1}
+decisions:
+  - {id: D-1, title: "Supabase 클라우드 신규 계정", context: "enometa820 계정이 무료 2개 한도 초과, 로컬 Docker는 기동 느림", decision: "enometa@theframeless.co 새 계정 org에 seeding-ops 프로젝트(서울)", status: accepted, updated: 2026-06-25}
+  - {id: D-2, title: "국가탭 전체 투입", context: "On-Air 1탭(79건)만으론 부족, 시트에 수천 크리에이터", decision: "KR·CN·JP·TW·SG·US 전 [List] 탭 통합 → 크리에이터 12,845·협업 14,110", status: accepted, updated: 2026-06-25}
+  - {id: D-3, title: "앱 자체 인증 + Vercel Protection 해제", context: "매니저(sol/anna/nhi)가 Vercel 계정 없이 접속해야 함", decision: "middleware 쿠키 로그인(id/pw=theframeless!) 추가 후 Vercel ssoProtection=null", status: accepted, updated: 2026-06-25}
+  - {id: D-4, title: "상태머신 effie 시트 정본 일치", context: "임의 영문 14상태가 시트 드롭다운과 불일치(스노우볼 위험)", decision: "effie 스크린샷 드롭다운 정본 15상태 EN 라벨로 전면 교체(DB enum 0003)", status: accepted, updated: 2026-06-25}
+  - {id: D-5, title: "한글 개발현황 탭", context: "비개발자(effie·매니저)가 현황·진행을 이해해야 함", decision: "/status 한글 페이지(데이터현황·기능·개발로그) + NavTabs 명확 노출", status: accepted, updated: 2026-06-25}
+  - {id: D-6, title: "데이터 갭은 시트 부재로 인정", context: "content 성과·SGP 절반 누락 조사 결과 시트 자체에 데이터 없음", decision: "버그 처리 대신 구조만 준비, /status에 투명 공개, 시트 채워지면 자동 반영", status: accepted, updated: 2026-06-25}

@@ -1,0 +1,14 @@
+meta: {repo: zipiel-operate-dash, updated: 2026-06-25 18:30 KST}
+status_line: 공유 가능 수준 달성 — 협업 14,110건 적재·effie 정본 15상태·앱 인증(theframeless!)·날짜·한글 개발현황탭(/status, NavTabs)까지 완료. 다음 = 운영팀(effie·매니저) 공유 후 피드백.
+facts:
+  commit: d1e4384(탭 네비) + 이 sse 커밋(/init CLAUDE.md 아키텍처 섹션·stale 교정)
+  git: CLAUDE.md만 dirty(이 sse가 커밋)
+  prod: vercel zipiel-operate-dash, Protection 해제, 앱 로그인만(theframeless!)
+next:
+  - {task: "운영팀(effie·매니저) 공유 → 피드백 수집. 공유 URL=vercel ls --prod 최신, 로그인 theframeless!", done: false}
+  - {task: "계약서/지급 워크플로 — effie 정의의 suyoung 알람·#재무회계방 연동", done: false}
+  - {task: "선택 폴리시 — 모바일 KPI 큰금액 잘림·짧은 URL(zipiel-seeding.vercel.app)", done: false}
+cautions:
+  - 프로덕션 로그인은 실브라우저 정상(서버로그 POST /login 303→GET / 200), playwright는 secure 쿠키 미유지로 자동검증 불가 — 로컬 빌드본 npx next start로 검증
+  - 잔여 데이터 갭은 버그 아닌 시트 부재 — content 성과(views·likes)·SGP 빈행 87·Simple Seeding/PR status 거의 없음. /status 탭이 투명 공개
+  - 실데이터 재적재 = python scripts/etl_seeding.py — supabase db reset --linked는 목 seed로 되돌리니 금지
