@@ -26,9 +26,14 @@ function Column({ col, items }: { col: Col; items: CollaborationView[] }) {
         }`}
         style={{ border: `1px dashed ${isOver ? meta.accent : "var(--border)"}` }}
       >
-        {items.map((co) => (
+        {items.slice(0, 50).map((co) => (
           <CollaborationCard key={co.id} co={co} />
         ))}
+        {items.length > 50 && (
+          <div className="text-[11px] text-[var(--muted)] text-center py-2">
+            +{items.length - 50} more — use Table view to browse
+          </div>
+        )}
         {items.length === 0 && (
           <div className="text-[11px] text-[var(--faint)] text-center py-6">No cards</div>
         )}

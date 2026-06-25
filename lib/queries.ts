@@ -48,9 +48,22 @@ const SELECT = "*, creator:creators(*), campaign:campaigns(*)";
 export async function fetchCollaborationViews(): Promise<CollaborationView[]> {
   const sb = createServerClient();
   if (!sb) return mock.getCollaborationViews();
-  const { data, error } = await sb.from("collaborations").select(SELECT).order("listed_date");
-  if (error || !data) return mock.getCollaborationViews();
-  return data.map(mapCollab);
+  // Supabase caps rows at 1000 per request — paginate to fetch all.
+  const all: unknown[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from("collaborations")
+      .select(SELECT)
+      .order("last_contact", { ascending: false, nullsFirst: false })
+      .range(from, from + PAGE - 1);
+    if (error) break;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  if (all.length === 0) return mock.getCollaborationViews();
+  return all.map(mapCollab);
 }
 
 export async function fetchCollaborationView(id: string): Promise<CollaborationView | undefined> {

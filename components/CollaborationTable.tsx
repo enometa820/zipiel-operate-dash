@@ -4,6 +4,7 @@ import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
@@ -69,41 +70,77 @@ export function CollaborationTable({ views }: { views: CollaborationView[] }) {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 50 } },
   });
 
+  const pg = table.getState().pagination;
+  const total = table.getFilteredRowModel().rows.length;
+  const start = pg.pageIndex * pg.pageSize + 1;
+  const end = Math.min(start + pg.pageSize - 1, total);
+
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b border-[var(--border)] bg-[var(--panel-2)]">
-                {hg.headers.map((h) => (
-                  <th
-                    key={h.id}
-                    onClick={h.column.getToggleSortingHandler()}
-                    className="text-left font-semibold text-[var(--muted)] text-xs px-3 py-2.5 cursor-pointer whitespace-nowrap select-none"
-                  >
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                    {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--panel-2)]">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2.5 whitespace-nowrap">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-2">
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b border-[var(--border)] bg-[var(--panel-2)]">
+                  {hg.headers.map((h) => (
+                    <th
+                      key={h.id}
+                      onClick={h.column.getToggleSortingHandler()}
+                      className="text-left font-semibold text-[var(--muted)] text-xs px-3 py-2.5 cursor-pointer whitespace-nowrap select-none"
+                    >
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                      {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--panel-2)]">
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2.5 whitespace-nowrap">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-[var(--muted)]">
+          {total > 0 ? `${start}–${end} of ${total}` : "0"}
+        </span>
+        <div className="flex items-center gap-1">
+          <PageBtn onClick={() => table.firstPage()} disabled={!table.getCanPreviousPage()}>«</PageBtn>
+          <PageBtn onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>‹</PageBtn>
+          <span className="px-2 text-[var(--muted)] tabular-nums">
+            {pg.pageIndex + 1} / {table.getPageCount()}
+          </span>
+          <PageBtn onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>›</PageBtn>
+          <PageBtn onClick={() => table.lastPage()} disabled={!table.getCanNextPage()}>»</PageBtn>
+        </div>
       </div>
     </div>
+  );
+}
+
+function PageBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="px-2.5 py-1 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] disabled:opacity-40 hover:bg-[var(--panel-2)]"
+    >
+      {children}
+    </button>
   );
 }
