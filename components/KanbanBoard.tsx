@@ -9,7 +9,9 @@ import { CollaborationCard } from "./CollaborationCard";
 type Col = BoardColumn;
 const COLUMNS: Col[] = [...PHASES, "Seeding", "Dropped"];
 
-function Column({ col, items }: { col: Col; items: CollaborationView[] }) {
+type StatusChange = (coId: string, status: import("@/lib/types").Status) => void;
+
+function Column({ col, items, onStatusChange }: { col: Col; items: CollaborationView[]; onStatusChange: StatusChange }) {
   const { setNodeRef, isOver } = useDroppable({ id: col });
   const meta = PHASE_META[col];
   return (
@@ -27,7 +29,7 @@ function Column({ col, items }: { col: Col; items: CollaborationView[] }) {
         style={{ border: `1px dashed ${isOver ? meta.accent : "var(--border)"}` }}
       >
         {items.slice(0, 50).map((co) => (
-          <CollaborationCard key={co.id} co={co} />
+          <CollaborationCard key={co.id} co={co} onStatusChange={onStatusChange} />
         ))}
         {items.length > 50 && (
           <div className="text-[11px] text-[var(--muted)] text-center py-2">
@@ -45,9 +47,11 @@ function Column({ col, items }: { col: Col; items: CollaborationView[] }) {
 export function KanbanBoard({
   views,
   onMove,
+  onStatusChange,
 }: {
   views: CollaborationView[];
   onMove: (coId: string, col: Col) => void;
+  onStatusChange: StatusChange;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -70,10 +74,11 @@ export function KanbanBoard({
             key={col}
             col={col}
             items={views.filter((v) => STATUS_PHASE[v.status] === col)}
+            onStatusChange={onStatusChange}
           />
         ))}
       </div>
-      <DragOverlay>{active ? <CollaborationCard co={active} dragging /> : null}</DragOverlay>
+      <DragOverlay>{active ? <CollaborationCard co={active} dragging onStatusChange={onStatusChange} /> : null}</DragOverlay>
     </DndContext>
   );
 }

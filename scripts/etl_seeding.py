@@ -99,9 +99,11 @@ def handle_from(url, name):
     n = (name or "").strip()
     return n[:60] if n else None
 
-def find_col(hdr, *names):
+def find_col(hdr, *names, exclude=()):
     for i, h in enumerate(hdr):
         hl = h.strip().lower()
+        if any(e.lower() in hl for e in exclude):
+            continue
         for n in names:
             if n.lower() in hl: return i
     return -1
@@ -133,7 +135,7 @@ for pattern, default_country in SOURCES:
         platform=find_col(hdr, "platform", "플랫폼"),
         url=find_col(hdr, "account url", "계정 url", "url"),
         name=find_col(hdr, "name", "계정", "인플루언서", "account"),
-        followers=find_col(hdr, "follower", "팔로워"),
+        followers=find_col(hdr, "followers", "팔로워", exclude=("demographic", "구성", "top 3", "top3")),
         tier=find_col(hdr, "tier", "티어"),
         email=find_col(hdr, "email", "이메일"),
         status=find_col(hdr, "진행 현황", "진행현황", "status"),

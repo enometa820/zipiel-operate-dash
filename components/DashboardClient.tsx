@@ -35,11 +35,22 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
       col === "Dropped" || col === "Seeding" ? COLUMN_DEFAULT_STATUS[col] : PHASE_STATUSES[col][0];
     // optimistic UI, then persist to DB (trigger logs status_history)
     setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: next } : v)));
+    persist(coId, next, target.status);
+  }
+
+  // direct status change (card dropdown) — any of the 15 statuses
+  function onStatusChange(coId: string, status: Status) {
+    const target = views.find((v) => v.id === coId);
+    if (!target || target.status === status) return;
+    setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status } : v)));
+    persist(coId, status, target.status);
+  }
+
+  function persist(coId: string, next: Status, prevStatus: Status) {
     startTransition(async () => {
       const res = await updateStatus(coId, next);
       if (!res.ok) {
-        // revert on failure
-        setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: target.status } : v)));
+        setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: prevStatus } : v)));
       }
     });
   }
@@ -107,7 +118,7 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
       </div>
 
       {mode === "kanban" ? (
-        <KanbanBoard views={filtered} onMove={onMove} />
+        <KanbanBoard views={filtered} onMove={onMove} onStatusChange={onStatusChange} />
       ) : (
         <CollaborationTable views={filtered} />
       )}

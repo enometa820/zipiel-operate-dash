@@ -5,14 +5,24 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { CollaborationView } from "@/lib/data";
 import { formatCompact, formatKrw } from "@/lib/utils";
+import { PHASE_META, STATUS_PHASE, STATUSES, type Status } from "@/lib/types";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "./badges";
 
-export function CollaborationCard({ co, dragging }: { co: CollaborationView; dragging?: boolean }) {
+export function CollaborationCard({
+  co,
+  dragging,
+  onStatusChange,
+}: {
+  co: CollaborationView;
+  dragging?: boolean;
+  onStatusChange: (coId: string, status: Status) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: co.id,
   });
 
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const accent = PHASE_META[STATUS_PHASE[co.status]].accent;
 
   return (
     <div
@@ -48,6 +58,22 @@ export function CollaborationCard({ co, dragging }: { co: CollaborationView; dra
         <TierBadge tier={co.creator.tier} />
         <CampaignBadge type={co.campaign.type} />
       </div>
+
+      {/* inline status editor — change stage directly without dragging */}
+      <select
+        value={co.status}
+        onChange={(e) => onStatusChange(co.id, e.target.value as Status)}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="mt-2 w-full text-[11px] font-semibold rounded-md px-2 py-1 bg-transparent outline-none cursor-pointer"
+        style={{ color: accent, border: `1px solid ${accent}` }}
+        aria-label="Change status"
+      >
+        {STATUSES.map((s) => (
+          <option key={s} value={s} className="text-[var(--text)]">
+            {s}
+          </option>
+        ))}
+      </select>
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)]">
         <ManagerBadge manager={co.manager} />

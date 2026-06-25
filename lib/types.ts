@@ -53,6 +53,25 @@ export const STATUS_KO: Record<Status, string> = {
   Drop: "드랍",
 };
 
+// canonical ordering (matches effie's dropdown), Drop last
+export const STATUSES: Status[] = [
+  "Listing",
+  "Contact Completed",
+  "Negotiating",
+  "Rate Inquiry",
+  "Confirmed to Proceed",
+  "Contract",
+  "Request Shipping Information",
+  "Shipping",
+  "Guideline Sent",
+  "Content in Production",
+  "Content Uploaded",
+  "On Hold",
+  "Simple Seeding/PR",
+  "Completed",
+  "Drop",
+];
+
 export type Phase =
   | "Sourcing"
   | "Negotiation"
