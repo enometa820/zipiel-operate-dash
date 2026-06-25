@@ -47,7 +47,9 @@ export function Overview({ stats }: { stats: OverviewStats }) {
             <div className="text-xs text-[var(--muted)]">Executed fee</div>
             <div className="text-3xl font-bold tabular-nums mt-1">{formatKrw(stats.executedFeeKrw)}</div>
             <div className="text-xs text-[var(--muted)] mt-1">
-              Paid campaigns, content live or completed · {stats.executedFeeCount} deal{stats.executedFeeCount === 1 ? "" : "s"}
+              {stats.executedFromPayments
+                ? `Actual disbursement · ${stats.executedFeeCount} payment${stats.executedFeeCount === 1 ? "" : "s"} marked paid`
+                : `Sheet estimate · Paid at content stage · ${stats.executedFeeCount} deal${stats.executedFeeCount === 1 ? "" : "s"}`}
             </div>
           </div>
           <div className="text-right">
@@ -56,12 +58,14 @@ export function Overview({ stats }: { stats: OverviewStats }) {
             <div className="text-[11px] text-[var(--faint)]">{stats.pipelineValueCount} deals · not committed spend</div>
           </div>
         </div>
-        {stats.paymentsRecorded === 0 && (
+        {!stats.executedFromPayments && (
           <div
             className="mt-3 inline-block text-[11px] rounded-md px-2.5 py-1"
             style={{ color: "var(--phase-negotiation)", border: "1px solid var(--phase-negotiation)" }}
           >
-            No payments recorded yet — figures derived from sheet content fees, not bank records.
+            {stats.paymentsRecorded === 0
+              ? "No payments recorded yet — figure derived from sheet content fees, not bank records. Record a payment on a deal to use actual disbursement."
+              : `${stats.paymentsRecorded} payment(s) recorded but none marked paid — still showing sheet estimate.`}
           </div>
         )}
         <p className="text-[11px] text-[var(--faint)] mt-2">
@@ -133,7 +137,14 @@ export function Overview({ stats }: { stats: OverviewStats }) {
         <div className="mt-3 space-y-2">
           <BasisRow k="Counts" v={`total ${f(stats.total)} = active ${f(stats.activePipeline)} + discovery pool ${f(stats.discoveryPool)} + dropped ${f(stats.dropped)}`} />
           <BasisRow k="Active pipeline" v="status ≠ Drop and phase ≠ Sourcing. Discovery pool = Sourcing phase." />
-          <BasisRow k="Executed fee" v={`${stats.executedFeeCount} deal(s) = ${formatKrw(stats.executedFeeKrw)} — Paid campaign · status Content Uploaded/Completed · trusted-KRW source only`} />
+          <BasisRow
+            k="Executed fee"
+            v={
+              stats.executedFromPayments
+                ? `${stats.executedFeeCount} payment(s) = ${formatKrw(stats.executedFeeKrw)} — actual disbursement (payments table · status=paid · gross)`
+                : `${stats.executedFeeCount} deal(s) = ${formatKrw(stats.executedFeeKrw)} — sheet estimate (Paid · content uploaded/completed · trusted KRW). Record payments to switch to actual disbursement.`
+            }
+          />
           <BasisRow k="Pipeline value" v={`${stats.pipelineValueCount} deals = ${formatKrw(stats.pipelineValueKrw)} — active · trusted-KRW fee · proposed price (not committed/paid)`} />
           <BasisRow
             k="Fee ledger (all rows)"

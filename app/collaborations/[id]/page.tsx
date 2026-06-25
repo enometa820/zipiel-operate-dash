@@ -4,14 +4,8 @@ import { fetchCollaborationView, fetchPayment, fetchStatusEvents } from "@/lib/q
 import { formatCompact, formatKrw, formatDate, daysAgo } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusEditor } from "@/components/StatusEditor";
-import { STATUS_KO, type TaxType } from "@/lib/types";
-
-const TAX_LABEL: Record<TaxType, string> = {
-  "kr_resident_3.3": "KR resident · 3.3% withheld",
-  nonresident_domestic: "Non-resident · domestic-sourced (22% / treaty)",
-  nonresident_overseas: "Non-resident · performed abroad · no withholding",
-  none: "No tax",
-};
+import { PaymentEditor } from "@/components/PaymentEditor";
+import { STATUS_KO } from "@/lib/types";
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -79,22 +73,10 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           {co.notes && <p className="text-sm text-[var(--muted)] mt-3 pt-3 border-t border-[var(--border)]">{co.notes}</p>}
         </div>
 
-        {/* Payment + tax */}
+        {/* Payment + tax — 실제 지급 기록(Executed fee 실값화) */}
         <div className="card p-5">
           <h2 className="text-sm font-semibold mb-3">Payment</h2>
-          {payment ? (
-            <>
-              <Row label="Gross" value={formatKrw(payment.grossKrw)} />
-              <Row label="Tax" value={formatKrw(payment.taxKrw)} />
-              <Row label="Net payout" value={<strong>{formatKrw(payment.netKrw)}</strong>} />
-              <Row label="Status" value={payment.status} />
-              <div className="mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--muted)]">
-                <span className="font-medium text-[var(--text)]">Tax basis:</span> {TAX_LABEL[payment.taxType]}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-[var(--muted)]">No payout (gifted / not yet at payment stage).</p>
-          )}
+          <PaymentEditor collaborationId={co.id} payment={payment} suggestedGross={co.contentFeeKrw} />
         </div>
       </div>
 

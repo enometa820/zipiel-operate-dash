@@ -151,8 +151,9 @@ export interface OverviewStats {
   dropped: number;
   contentLive: number; // 콘텐츠 업로드/완료 — 실제 산출물
   stuck: number; // active 중 14일+ 소통 없음(미기록 포함)
-  executedFeeKrw: number; // sheet_krw & Paid & 콘텐츠 라이브/완료 — 집행에 가장 근접
+  executedFeeKrw: number; // payments 기록 있으면 실집행(paid gross), 없으면 시트 추정
   executedFeeCount: number;
+  executedFromPayments: boolean; // true=payments 테이블 실값, false=시트 추정
   pipelineValueKrw: number; // sheet_krw & active — 제안가(약정 아님)
   pipelineValueCount: number;
   paymentsRecorded: number; // payments 테이블 행수(현재 0)
@@ -241,13 +242,24 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     }
   }
 
-  // payments 테이블 실집행 기록(현재 0행 — 정직 표시용)
-  let paymentsRecorded = 0;
+  // payments 테이블 실집행 — 기록 있으면 Executed fee를 실값(paid gross)으로 전환
+  let paymentsRecorded = 0,
+    paidGross = 0,
+    paidCount = 0;
   const sb = createServerClient();
   if (sb) {
-    const { count } = await sb.from("payments").select("*", { count: "exact", head: true });
-    paymentsRecorded = count ?? 0;
+    const { data: pays } = await sb.from("payments").select("gross_krw, status");
+    if (pays) {
+      paymentsRecorded = pays.length;
+      for (const p of pays as { gross_krw: number; status: string }[]) {
+        if (p.status === "paid") {
+          paidGross += Number(p.gross_krw) || 0;
+          paidCount++;
+        }
+      }
+    }
   }
+  const executedFromPayments = paidCount > 0;
 
   return {
     total: views.length,
@@ -257,8 +269,9 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     dropped,
     contentLive,
     stuck,
-    executedFeeKrw,
-    executedFeeCount,
+    executedFeeKrw: executedFromPayments ? paidGross : executedFeeKrw,
+    executedFeeCount: executedFromPayments ? paidCount : executedFeeCount,
+    executedFromPayments,
     pipelineValueKrw,
     pipelineValueCount,
     paymentsRecorded,
