@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavTabs } from "@/components/NavTabs";
 import { fetchStats } from "@/lib/queries";
 import { COUNTRY_FLAG, PHASES, PHASE_META, type Country } from "@/lib/types";
 
@@ -20,7 +20,7 @@ export default async function StatusPage() {
           <h1 className="text-xl font-bold">개발 현황 · 작업 로그</h1>
           <p className="text-sm text-[var(--muted)] mt-0.5">이 대시보드가 지금 무엇을 하고, 어디까지 만들어졌는지</p>
         </div>
-        <Link href="/" className="text-sm text-[var(--accent)] hover:underline">← 대시보드로</Link>
+        <NavTabs />
       </div>
 
       {/* 개요 */}

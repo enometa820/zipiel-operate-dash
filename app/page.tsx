@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavTabs } from "@/components/NavTabs";
 import { DashboardClient } from "@/components/DashboardClient";
 import { fetchCollaborationViews } from "@/lib/queries";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -20,7 +20,7 @@ export default async function Home() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/status" className="text-sm text-[var(--accent)] hover:underline">개발 현황</Link>
+          <NavTabs />
           <span className="chip">{live ? "Supabase · live" : "Demo data · DB not connected"}</span>
         </div>
       </header>
