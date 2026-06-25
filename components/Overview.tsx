@@ -12,6 +12,7 @@ const CAMPAIGN_COLOR: Record<string, string> = {
 // 정직 KPI + 의사결정용 시각화. 가짜 약정액 없음, 합산은 근거 동반.
 export function Overview({ stats }: { stats: OverviewStats }) {
   const negotiating = stats.funnel.find((f) => f.phase === "Negotiation")?.count ?? 0;
+  const paidActive = stats.byCampaignActive["Paid"] ?? 0;
 
   // 전 단계 분포(스택바·범례) — 발굴풀이 압도적임을 정직하게 보여줌
   const dist = [
@@ -53,9 +54,9 @@ export function Overview({ stats }: { stats: OverviewStats }) {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-[var(--muted)]">Pipeline value (proposed)</div>
-            <div className="text-xl font-semibold tabular-nums mt-1">{formatKrw(stats.pipelineValueKrw)}</div>
-            <div className="text-[11px] text-[var(--faint)]">{stats.pipelineValueCount} deals · not committed spend</div>
+            <div className="text-xs text-[var(--muted)]">Paid deals in pipeline</div>
+            <div className="text-xl font-semibold tabular-nums mt-1">{f(paidActive)}</div>
+            <div className="text-[11px] text-[var(--faint)]">gifted deals carry no fee</div>
           </div>
         </div>
         {!stats.executedFromPayments && (
@@ -145,12 +146,11 @@ export function Overview({ stats }: { stats: OverviewStats }) {
                 : `${stats.executedFeeCount} deal(s) = ${formatKrw(stats.executedFeeKrw)} — sheet estimate (Paid · content uploaded/completed · trusted KRW). Record payments to switch to actual disbursement.`
             }
           />
-          <BasisRow k="Pipeline value" v={`${stats.pipelineValueCount} deals = ${formatKrw(stats.pipelineValueKrw)} — active · trusted-KRW fee · proposed price (not committed/paid)`} />
           <BasisRow
             k="Fee ledger (all rows)"
             v={`trusted KRW ${stats.feeLedger.sheetKrw.count} = ${formatKrw(stats.feeLedger.sheetKrw.sum)} (KR/CN/On-Air/SGP) · unverified ${stats.feeLedger.unverified.count} = ${formatKrw(stats.feeLedger.unverified.sum)} (TW/HK/US — excluded) · no fee ${f(stats.feeLedger.noFee)} (incl. JP — engagement-rate column is not a fee)`}
           />
-          <BasisRow k="Payments table" v={`${stats.paymentsRecorded} rows — actual disbursement not yet recorded.`} />
+          <BasisRow k="Payments table" v={`${stats.paymentsRecorded} payment row(s) recorded. Record on a deal to drive Executed fee.`} />
           <BasisRow k="Source" v="Live Supabase, re-derived on every load. Cross-check with scripts/diagnose_fees.py." />
         </div>
       </details>
