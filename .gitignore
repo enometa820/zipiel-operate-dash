@@ -1,0 +1,18 @@
+# 운영 시트 원본 스냅샷 — 크리에이터 PII(전화·주소·이메일) 포함 → 외부 유출 방지
+research/sheet-snapshot/*.csv
+
+# 환경·비밀
+.env
+.env.local
+.env*.local
+
+# 의존성·빌드 (Next.js 대비)
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# OS·에디터
+.DS_Store
+Thumbs.db
