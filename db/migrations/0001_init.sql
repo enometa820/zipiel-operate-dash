@@ -60,6 +60,7 @@ create table collaborations (
   source          text,               -- referral / crawling criteria
   shipped_product text,
   tracking_number text,
+  post_url        text,
   last_contact    date,
   listed_date     date,
   notes           text,

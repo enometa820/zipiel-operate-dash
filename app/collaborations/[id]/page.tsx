@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCollaborationView, getPayment, getStatusEvents } from "@/lib/data";
+import { fetchCollaborationView, fetchPayment, fetchStatusEvents } from "@/lib/queries";
 import { formatCompact, formatKrw, daysAgo } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, StatusBadge, TierBadge } from "@/components/badges";
 import type { TaxType } from "@/lib/types";
@@ -14,11 +14,10 @@ const TAX_LABEL: Record<TaxType, string> = {
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const co = getCollaborationView(id);
+  const co = await fetchCollaborationView(id);
   if (!co) notFound();
 
-  const events = getStatusEvents(id);
-  const payment = getPayment(id);
+  const [events, payment] = await Promise.all([fetchStatusEvents(id), fetchPayment(id)]);
 
   return (
     <div className="max-w-[900px] mx-auto px-5 py-6">

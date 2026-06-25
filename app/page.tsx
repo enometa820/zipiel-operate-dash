@@ -1,8 +1,10 @@
 import { DashboardClient } from "@/components/DashboardClient";
-import { getCollaborationViews } from "@/lib/data";
+import { fetchCollaborationViews } from "@/lib/queries";
+import { supabaseConfigured } from "@/lib/supabase";
 
-export default function Home() {
-  const views = getCollaborationViews();
+export default async function Home() {
+  const views = await fetchCollaborationViews();
+  const live = supabaseConfigured();
   return (
     <div className="max-w-[1400px] mx-auto px-5 py-6">
       <header className="flex items-center justify-between mb-6">
@@ -16,7 +18,7 @@ export default function Home() {
             Global influencer seeding &amp; collaboration pipeline
           </p>
         </div>
-        <span className="chip">Demo data · DB not connected</span>
+        <span className="chip">{live ? "Supabase · live" : "Demo data · DB not connected"}</span>
       </header>
 
       <DashboardClient initial={views} />

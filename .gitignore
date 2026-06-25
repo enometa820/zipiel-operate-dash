@@ -63,3 +63,7 @@ next-env.d.ts
 # 검증 산출물
 .playwright-mcp/
 /*.png
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
