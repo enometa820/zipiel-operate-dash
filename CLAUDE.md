@@ -27,6 +27,12 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 - **PII**: 크리에이터 이메일·주소·전화는 RLS·최소권한. 실데이터 시트는 외부 공유물에 raw로 옮기지 않는다.
 - **진실 우선순위**: 라이브 시트 스냅샷·코드 > 문서. 모델이 실데이터와 어긋나면 모델이 stale.
 
+## 배포
+
+- **Vercel 배포(2026-06-25)**: 프로젝트 `zipiel-operate-dash`(scope `tototal5542-6672s-projects`), GitHub 연결됨(push 시 자동 배포). 환경변수 3개(SUPABASE URL·anon·service) production/preview/development 등록.
+- 재배포 = `vercel --prod --yes`. production URL = `vercel ls zipiel-operate-dash --prod`.
+- **Deployment Protection on** — PII 대시보드라 Vercel 로그인 팀원만 접속(올바른 기본값). 팀 접근은 Vercel 팀 초대 또는 앱 자체 인증 추가 후 protection 해제. 일반 매니저(sol/anna/nhi) 접근하려면 인증 설계 필요.
+
 ## 글로벌 룰
 
 상위 글로벌 룰(`~/.claude/CLAUDE.md`) 적용 — 심플함 우선, 정직성(날조 금지), git 자동 진행(secret 가드), 한국어 응답.
