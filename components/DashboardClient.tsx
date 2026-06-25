@@ -4,17 +4,18 @@ import { useMemo, useState, useTransition } from "react";
 import type { CollaborationView } from "@/lib/data";
 import { updateStatus } from "@/app/actions";
 import {
+  COLUMN_DEFAULT_STATUS,
   PHASES,
   PHASE_META,
   PHASE_STATUSES,
   STATUS_PHASE,
-  type Phase,
+  type BoardColumn,
+  type Status,
 } from "@/lib/types";
 import { formatKrw } from "@/lib/utils";
 import { KanbanBoard } from "./KanbanBoard";
 import { CollaborationTable } from "./CollaborationTable";
 
-type Col = Phase | "Dropped";
 type ViewMode = "kanban" | "table";
 
 export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
@@ -27,10 +28,11 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
 
   const managers = useMemo(() => Array.from(new Set(initial.map((v) => v.manager))).sort(), [initial]);
 
-  function onMove(coId: string, col: Col) {
+  function onMove(coId: string, col: BoardColumn) {
     const target = views.find((v) => v.id === coId);
     if (!target || STATUS_PHASE[target.status] === col) return;
-    const next = col === "Dropped" ? "Dropped" : PHASE_STATUSES[col as Phase][0];
+    const next: Status =
+      col === "Dropped" || col === "Seeding" ? COLUMN_DEFAULT_STATUS[col] : PHASE_STATUSES[col][0];
     // optimistic UI, then persist to DB (trigger logs status_history)
     setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: next } : v)));
     startTransition(async () => {
@@ -49,9 +51,9 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
     return true;
   });
 
-  const active = filtered.filter((v) => v.status !== "Dropped");
-  const dropped = filtered.filter((v) => v.status === "Dropped").length;
-  const totalFee = filtered.filter((v) => v.status !== "Dropped").reduce((s, v) => s + (v.contentFeeKrw ?? 0), 0);
+  const active = filtered.filter((v) => v.status !== "Drop");
+  const dropped = filtered.filter((v) => v.status === "Drop").length;
+  const totalFee = active.reduce((s, v) => s + (v.contentFeeKrw ?? 0), 0);
 
   return (
     <div className="space-y-5">

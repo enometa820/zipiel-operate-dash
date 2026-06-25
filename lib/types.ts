@@ -1,5 +1,5 @@
-// Domain model — derived from the live "2026 Contact List" sheet (On-Air Sheet, 39 cols)
-// normalized into the 6-table model. See research/00-조사-종합.md.
+// Domain model — status machine matches effie's canonical sheet dropdown
+// (15 statuses, EN labels per the sheet) exactly. See research/00-조사-종합.md.
 
 export type Platform =
   | "instagram"
@@ -16,22 +16,42 @@ export type Tier = "Nano" | "Micro" | "Mid" | "Macro" | "Mega";
 
 export type CampaignType = "Gifted" | "Paid" | "Affiliate";
 
-// Standardized status machine (unifies the KR/EN mixed labels across country tabs)
+// Canonical status enum — EN labels exactly as effie's sheet dropdown.
 export type Status =
-  | "Listed"
-  | "Contacted"
-  | "In Discussion"
+  | "Listing"
+  | "Contact Completed"
+  | "Negotiating"
   | "Rate Inquiry"
-  | "Confirmed"
+  | "Confirmed to Proceed"
   | "Contract"
-  | "Shipping Info"
+  | "Request Shipping Information"
   | "Shipping"
-  | "Guidelines Sent"
-  | "In Production"
-  | "Published"
-  | "Payment Pending"
+  | "Guideline Sent"
+  | "Content in Production"
+  | "Content Uploaded"
+  | "On Hold"
+  | "Simple Seeding/PR"
   | "Completed"
-  | "Dropped";
+  | "Drop";
+
+// Korean labels (sheet is bilingual; EN is primary per effie, KO for tooltip/ETL).
+export const STATUS_KO: Record<Status, string> = {
+  Listing: "리스트업",
+  "Contact Completed": "컨택 완료",
+  Negotiating: "협업 조건 조율",
+  "Rate Inquiry": "단가 문의",
+  "Confirmed to Proceed": "진행 확정",
+  Contract: "계약서",
+  "Request Shipping Information": "배송 정보 요청",
+  Shipping: "배송 중",
+  "Guideline Sent": "가이드라인 전달",
+  "Content in Production": "콘텐츠 제작 중",
+  "Content Uploaded": "콘텐츠 업로드 완료",
+  "On Hold": "지급 대기",
+  "Simple Seeding/PR": "단순시딩/PR",
+  Completed: "협업완료",
+  Drop: "드랍",
+};
 
 export type Phase =
   | "Sourcing"
@@ -41,12 +61,13 @@ export type Phase =
   | "Payment"
   | "Done";
 
-// Tax handling for payouts — NOT a flat 3.3% for foreign creators.
-// See research/00-조사-종합.md §8.
+// Board column = Phase, plus two off-pipeline lanes (Seeding, Dropped).
+export type BoardColumn = Phase | "Seeding" | "Dropped";
+
 export type TaxType =
-  | "kr_resident_3.3" // Korean resident: 3.3% withholding
-  | "nonresident_domestic" // performed in KR: 22% / treaty rate
-  | "nonresident_overseas" // performed abroad: no withholding, pay gross
+  | "kr_resident_3.3"
+  | "nonresident_domestic"
+  | "nonresident_overseas"
   | "none";
 
 export interface Creator {
@@ -58,8 +79,8 @@ export interface Creator {
   followers: number;
   tier: Tier;
   email?: string;
-  manager: string; // sol / anna / nhi ...
-  avgViews?: number; // avg views of last 6 posts (for CPV)
+  manager: string;
+  avgViews?: number;
 }
 
 export interface Campaign {
@@ -75,11 +96,11 @@ export interface Collaboration {
   campaignId: string;
   status: Status;
   manager: string;
-  contentFeeKrw?: number; // gross fee in KRW
-  cpv?: number; // cost per view
+  contentFeeKrw?: number;
+  cpv?: number;
   trackingNumber?: string;
   postUrl?: string;
-  lastContact?: string; // ISO date
+  lastContact?: string;
   listedDate?: string;
   notes?: string;
 }
@@ -90,7 +111,7 @@ export interface StatusEvent {
   from: Status | null;
   to: Status;
   changedBy: string;
-  changedAt: string; // ISO
+  changedAt: string;
   note?: string;
 }
 
@@ -104,23 +125,24 @@ export interface Payment {
   status: "pending" | "paid";
 }
 
-// ---- Status → Phase mapping (15 stages folded into 6 kanban columns) ----
+// ---- Status → board column (effie's 15 stages folded to columns) ----
 
-export const STATUS_PHASE: Record<Status, Phase | "Dropped"> = {
-  Listed: "Sourcing",
-  Contacted: "Sourcing",
-  "In Discussion": "Negotiation",
+export const STATUS_PHASE: Record<Status, BoardColumn> = {
+  Listing: "Sourcing",
+  "Contact Completed": "Sourcing",
+  Negotiating: "Negotiation",
   "Rate Inquiry": "Negotiation",
-  Confirmed: "Negotiation",
+  "Confirmed to Proceed": "Negotiation",
   Contract: "Fulfillment",
-  "Shipping Info": "Fulfillment",
+  "Request Shipping Information": "Fulfillment",
   Shipping: "Fulfillment",
-  "Guidelines Sent": "Content",
-  "In Production": "Content",
-  Published: "Content",
-  "Payment Pending": "Payment",
+  "Guideline Sent": "Content",
+  "Content in Production": "Content",
+  "Content Uploaded": "Content",
+  "On Hold": "Payment",
   Completed: "Done",
-  Dropped: "Dropped",
+  "Simple Seeding/PR": "Seeding",
+  Drop: "Dropped",
 };
 
 export const PHASES: Phase[] = [
@@ -133,16 +155,22 @@ export const PHASES: Phase[] = [
 ];
 
 export const PHASE_STATUSES: Record<Phase, Status[]> = {
-  Sourcing: ["Listed", "Contacted"],
-  Negotiation: ["In Discussion", "Rate Inquiry", "Confirmed"],
-  Fulfillment: ["Contract", "Shipping Info", "Shipping"],
-  Content: ["Guidelines Sent", "In Production", "Published"],
-  Payment: ["Payment Pending"],
+  Sourcing: ["Listing", "Contact Completed"],
+  Negotiation: ["Negotiating", "Rate Inquiry", "Confirmed to Proceed"],
+  Fulfillment: ["Contract", "Request Shipping Information", "Shipping"],
+  Content: ["Guideline Sent", "Content in Production", "Content Uploaded"],
+  Payment: ["On Hold"],
   Done: ["Completed"],
 };
 
+// status assigned when a card is dropped onto an off-pipeline lane
+export const COLUMN_DEFAULT_STATUS: Record<"Seeding" | "Dropped", Status> = {
+  Seeding: "Simple Seeding/PR",
+  Dropped: "Drop",
+};
+
 export const PHASE_META: Record<
-  Phase | "Dropped",
+  BoardColumn,
   { label: string; accent: string; dot: string }
 > = {
   Sourcing: { label: "Sourcing", accent: "var(--phase-sourcing)", dot: "bg-slate-400" },
@@ -151,6 +179,7 @@ export const PHASE_META: Record<
   Content: { label: "Content", accent: "var(--phase-content)", dot: "bg-violet-400" },
   Payment: { label: "Payment", accent: "var(--phase-payment)", dot: "bg-emerald-400" },
   Done: { label: "Done", accent: "var(--phase-done)", dot: "bg-teal-500" },
+  Seeding: { label: "Seeding / PR", accent: "var(--phase-seeding)", dot: "bg-fuchsia-400" },
   Dropped: { label: "Dropped", accent: "var(--phase-dropped)", dot: "bg-rose-400" },
 };
 

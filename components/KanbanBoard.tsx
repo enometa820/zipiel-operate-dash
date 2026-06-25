@@ -3,11 +3,11 @@
 import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useState } from "react";
 import type { CollaborationView } from "@/lib/data";
-import { PHASES, PHASE_META, STATUS_PHASE, type Phase } from "@/lib/types";
+import { PHASES, PHASE_META, STATUS_PHASE, type BoardColumn } from "@/lib/types";
 import { CollaborationCard } from "./CollaborationCard";
 
-type Col = Phase | "Dropped";
-const COLUMNS: Col[] = [...PHASES, "Dropped"];
+type Col = BoardColumn;
+const COLUMNS: Col[] = [...PHASES, "Seeding", "Dropped"];
 
 function Column({ col, items }: { col: Col; items: CollaborationView[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: col });

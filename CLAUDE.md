@@ -16,9 +16,9 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 - 명령: `npm run dev` / `npm run build` / `npm run lint`.
 - **데이터: Supabase 클라우드 연결됨(2026-06-25)**. 프로젝트 `seeding-ops`(ref `edfbpvmtcghflcqljpcp`, 서울), 별도 계정 `enometa@theframeless.co` org. 토큰·DB비번 = `~/.vault/zipiel/supabase-seeding.env`. 앱 연결값 = `.env.local`(gitignore, URL·anon·service key). `lib/queries.ts`가 fetch(env 없으면 `lib/data.ts` 목 폴백). 스키마 정본 = `db/migrations/` = `supabase/migrations/`. 스키마 변경 = `supabase db push`, 시드 = `supabase db reset --linked`.
 - **RLS**: 전 테이블 RLS enabled, 0002에서 authenticated read 정책 추가(anon 차단 유지). 현재 서버가 service key로 읽기·쓰기(RLS 우회). 인증·PII 최소권한 정책은 아직.
-- **실데이터 적재(2026-06-25)**: `scripts/etl_seeding.py` = On-Air + 국가별 [List] 탭(KR·JP·TW·US) 통합 정규화 투입 → **크리에이터 8,591·협업 9,701**. 목 seed 덮어씀. 재적재 = `python scripts/etl_seeding.py`(CSV는 gitignore된 `research/sheet-snapshot/`, PII repo 미포함). 매핑: IG→instagram·xhs→xiaohongshu, 한/영 status→표준 enum, fee/followers 1억 상한(병합 오염 거름).
-- **알려진 데이터 갭(후속)**: ① **CN(3,560행)·SGP(172) 탭 0건** — 컬럼 매핑 실패, etl_seeding의 find_col 보강 필요. ② followers 0 다수(일부 탭 파싱). ③ status 대부분 Sourcing(Listed/Contacted) — 시트가 초기단계 위주. 앱은 칸반 컬럼 카드 상한 50 + 테이블 페이지네이션, queries.ts는 1000행 cap 우회 페이지네이션으로 전체 로드.
-- 상태머신: `lib/types.ts`의 `STATUS_PHASE`(14상태 → 6페이즈). 현재 상태는 `collaborations` 본체, 전이는 `collaboration_status_history` append-only.
+- **실데이터 적재(2026-06-25)**: `scripts/etl_seeding.py` = On-Air + 국가별 [List] 탭(KR·CN·JP·TW·SG·US) 통합 정규화 투입 → **크리에이터 12,845·협업 14,110**(전 탭). 목 seed 덮어씀. 재적재 = `python scripts/etl_seeding.py`(CSV는 gitignore된 `research/sheet-snapshot/`, PII repo 미포함). 매핑: IG→instagram·xhs/rednote/xiaohongshu→xiaohongshu·douyin, 한/영 status→effie 정본 15 enum, country SGP→SG 정규화, fee/followers 1억 상한(병합 오염 거름). find_col name 후보에서 "id" 제외(Candidate 오매치 방지).
+- **상태머신 = effie 정본 15상태**(`lib/types.ts` Status, 스크린샷 드롭다운과 EN 라벨 일치): Listing·Contact Completed·Negotiating·Rate Inquiry·Confirmed to Proceed·Contract·Request Shipping Information·Shipping·Guideline Sent·Content in Production·Content Uploaded·On Hold·Simple Seeding/PR·Completed·Drop. DB enum = 0003. `STATUS_PHASE`로 6페이즈 + Seeding/Dropped 레인. 한글 라벨 = `STATUS_KO`(툴팁). 현재 상태는 `collaborations` 본체, 전이는 `collaboration_status_history` append-only(트리거 자동).
+- 앱 대량 대응: 칸반 컬럼 카드 상한 50, 테이블 페이지네이션, queries.ts는 1000행 cap 우회 페이지네이션으로 전체 로드. 잔여 갭: followers 0 다수(일부 탭 파싱)·SGP 84/172(절반)·status 대부분 Sourcing(시트 초기단계 위주).
 
 ## 규칙
 

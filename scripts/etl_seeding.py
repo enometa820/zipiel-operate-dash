@@ -40,7 +40,7 @@ def map_platform(s):
     if s in ("ig", "instagram", "인스타그램", "insta"): return "instagram"
     if s in ("tt", "tiktok", "틱톡"): return "tiktok"
     if s in ("x", "twitter"): return "x"
-    if s in ("xhs", "red", "小红书", "샤오홍슈", "rednote"): return "xiaohongshu"
+    if s in ("xhs", "red", "小红书", "샤오홍슈", "rednote", "xiaohongshu"): return "xiaohongshu"
     if s in ("yt", "youtube", "유튜브"): return "youtube"
     if s in ("tr", "threads", "스레드"): return "threads"
     if s in ("douyin", "도우인", "抖音"): return "douyin"
@@ -50,27 +50,31 @@ TIERS = {"Nano", "Micro", "Mid", "Macro", "Mega"}
 COUNTRY_OK = {"CN", "TW", "KR", "JP", "MY", "SG", "HK", "US"}
 
 def map_status(s):
+    # maps sheet's bilingual labels -> effie's canonical 15-stage enum.
+    # order matters: longer/specific keys before substrings (e.g. 'request
+    # shipping' before 'shipping', 'production' before bare 'pr').
     s = (s or "").strip().lower()
     table = [
-        (("creator listing", "리스트업"), "Listed"),
-        (("guidelines sent", "가이드라인"), "Guidelines Sent"),
-        (("content in production", "제작 중", "제작중"), "In Production"),
-        (("content published", "업로드 완료", "업로드완료"), "Published"),
-        (("payment", "지급"), "Payment Pending"),
-        (("in discussion", "협의"), "In Discussion"),
-        (("rate", "단가"), "Rate Inquiry"),
-        (("진행 확정", "진행확정", "confirmed"), "Confirmed"),
+        (("request shipping information", "배송 정보 요청", "배송정보"), "Request Shipping Information"),
+        (("creator listing", "리스트업", "listing"), "Listing"),
+        (("guideline sent", "guidelines sent", "가이드라인 전달", "가이드라인"), "Guideline Sent"),
+        (("content in production", "콘텐츠 제작 중", "제작 중", "제작중"), "Content in Production"),
+        (("content uploaded", "content published", "콘텐츠 업로드 완료", "업로드 완료", "업로드완료"), "Content Uploaded"),
+        (("on hold", "지급 대기", "지급대기", "payment", "지급"), "On Hold"),
+        (("negotiating", "협업 조건 조율", "in discussion", "협의"), "Negotiating"),
+        (("rate inquiry", "rate", "단가"), "Rate Inquiry"),
+        (("confirmed to proceed", "진행 확정", "진행확정", "confirmed"), "Confirmed to Proceed"),
         (("계약서", "contract"), "Contract"),
-        (("shipping info", "배송 정보", "배송정보"), "Shipping Info"),
-        (("shipping", "배송"), "Shipping"),
-        (("dropped", "드랍", "drop"), "Dropped"),
+        (("shipping", "배송 중", "배송중", "배송"), "Shipping"),
+        (("simple seeding", "단순시딩", "시딩"), "Simple Seeding/PR"),
         (("completed", "협업 완료", "협업완료"), "Completed"),
-        (("email sent", "컨택", "dm"), "Contacted"),
+        (("dropped", "드랍", "drop"), "Drop"),
+        (("contact completed", "컨택 완료", "컨택완료", "email sent", "dm", "컨택"), "Contact Completed"),
     ]
     for keys, val in table:
         for k in keys:
             if k in s: return val
-    return "Listed"  # country list default = sourced
+    return "Listing"  # country list default = sourced
 
 def map_campaign(c):
     c = (c or "").strip().lower()
@@ -128,7 +132,7 @@ for pattern, default_country in SOURCES:
         manager=find_col(hdr, "manager", "담당자"),
         platform=find_col(hdr, "platform", "플랫폼"),
         url=find_col(hdr, "account url", "계정 url", "url"),
-        name=find_col(hdr, "name", "계정", "account", "id", "인플루언서"),
+        name=find_col(hdr, "name", "계정", "인플루언서", "account"),
         followers=find_col(hdr, "follower", "팔로워"),
         tier=find_col(hdr, "tier", "티어"),
         email=find_col(hdr, "email", "이메일"),
@@ -145,7 +149,11 @@ for pattern, default_country in SOURCES:
             return r[i].strip() if i >= 0 and len(r) > i else ""
         plat = map_platform(g("platform"))
         country = (g("country") or default_country or "").upper()
-        if country == "TW/KR": country = "TW"
+        country = {"SGP": "SG", "SINGAPORE": "SG", "TAIWAN": "TW", "JAPAN": "JP",
+                   "KOREA": "KR", "MALAYSIA": "MY", "CHINA": "CN", "HONGKONG": "HK",
+                   "HONG KONG": "HK", "TW/KR": "TW"}.get(country, country)
+        if country not in COUNTRY_OK and default_country in COUNTRY_OK:
+            country = default_country
         tier = g("tier") if g("tier") in TIERS else None
         h = handle_from(g("url"), g("name"))
         if not plat or country not in COUNTRY_OK or not h:

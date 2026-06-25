@@ -26,25 +26,25 @@ export const creators: Creator[] = [
 ];
 
 export const collaborations: Collaboration[] = [
-  { id: "co-1", creatorId: "cr-1", campaignId: "cmp-1", status: "Listed", manager: "sol", listedDate: "2026-06-22", lastContact: "2026-06-22" },
-  { id: "co-2", creatorId: "cr-9", campaignId: "cmp-1", status: "Contacted", manager: "sol", listedDate: "2026-06-18", lastContact: "2026-06-23" },
-  { id: "co-3", creatorId: "cr-4", campaignId: "cmp-1", status: "In Discussion", manager: "sol", listedDate: "2026-06-10", lastContact: "2026-06-24", notes: "Asked about gifted collab" },
+  { id: "co-1", creatorId: "cr-1", campaignId: "cmp-1", status: "Listing", manager: "sol", listedDate: "2026-06-22", lastContact: "2026-06-22" },
+  { id: "co-2", creatorId: "cr-9", campaignId: "cmp-1", status: "Contact Completed", manager: "sol", listedDate: "2026-06-18", lastContact: "2026-06-23" },
+  { id: "co-3", creatorId: "cr-4", campaignId: "cmp-1", status: "Negotiating", manager: "sol", listedDate: "2026-06-10", lastContact: "2026-06-24", notes: "Asked about gifted collab" },
   { id: "co-4", creatorId: "cr-3", campaignId: "cmp-3", status: "Rate Inquiry", manager: "sol", contentFeeKrw: 300000, lastContact: "2026-06-23" },
-  { id: "co-5", creatorId: "cr-2", campaignId: "cmp-2", status: "Confirmed", manager: "anna", contentFeeKrw: 280000, cpv: 5.5, lastContact: "2026-06-21" },
+  { id: "co-5", creatorId: "cr-2", campaignId: "cmp-2", status: "Confirmed to Proceed", manager: "anna", contentFeeKrw: 280000, cpv: 5.5, lastContact: "2026-06-21" },
   { id: "co-6", creatorId: "cr-11", campaignId: "cmp-2", status: "Contract", manager: "sol", contentFeeKrw: 450000, lastContact: "2026-06-20" },
   { id: "co-7", creatorId: "cr-8", campaignId: "cmp-3", status: "Shipping", manager: "nhi", trackingNumber: "TW884021", lastContact: "2026-06-19" },
-  { id: "co-8", creatorId: "cr-6", campaignId: "cmp-1", status: "Guidelines Sent", manager: "anna", lastContact: "2026-06-18" },
-  { id: "co-9", creatorId: "cr-5", campaignId: "cmp-1", status: "In Production", manager: "nhi", lastContact: "2026-06-17" },
-  { id: "co-10", creatorId: "cr-2", campaignId: "cmp-2", status: "Published", manager: "anna", postUrl: "https://instagram.com/p/xyz", cpv: 4.9, lastContact: "2026-06-15" },
-  { id: "co-11", creatorId: "cr-7", campaignId: "cmp-2", status: "Payment Pending", manager: "anna", contentFeeKrw: 1800000, cpv: 5.3, postUrl: "https://x.com/post", lastContact: "2026-06-12" },
+  { id: "co-8", creatorId: "cr-6", campaignId: "cmp-1", status: "Guideline Sent", manager: "anna", lastContact: "2026-06-18" },
+  { id: "co-9", creatorId: "cr-5", campaignId: "cmp-1", status: "Content in Production", manager: "nhi", lastContact: "2026-06-17" },
+  { id: "co-10", creatorId: "cr-2", campaignId: "cmp-2", status: "Content Uploaded", manager: "anna", postUrl: "https://instagram.com/p/xyz", cpv: 4.9, lastContact: "2026-06-15" },
+  { id: "co-11", creatorId: "cr-7", campaignId: "cmp-2", status: "On Hold", manager: "anna", contentFeeKrw: 1800000, cpv: 5.3, postUrl: "https://x.com/post", lastContact: "2026-06-12" },
   { id: "co-12", creatorId: "cr-12", campaignId: "cmp-3", status: "Completed", manager: "nhi", contentFeeKrw: 600000, cpv: 4.0, postUrl: "https://instagram.com/p/abc", lastContact: "2026-06-10" },
-  { id: "co-13", creatorId: "cr-10", campaignId: "cmp-1", status: "Dropped", manager: "anna", lastContact: "2026-06-08", notes: "No reply 1 month+" },
+  { id: "co-13", creatorId: "cr-10", campaignId: "cmp-1", status: "Drop", manager: "anna", lastContact: "2026-06-08", notes: "No reply 1 month+" },
 ];
 
 export const statusEvents: StatusEvent[] = [
-  { id: "ev-1", collaborationId: "co-11", from: "Published", to: "Payment Pending", changedBy: "anna", changedAt: "2026-06-12T09:00:00Z" },
-  { id: "ev-2", collaborationId: "co-11", from: "In Production", to: "Published", changedBy: "anna", changedAt: "2026-06-10T09:00:00Z" },
-  { id: "ev-3", collaborationId: "co-11", from: "Confirmed", to: "In Production", changedBy: "anna", changedAt: "2026-06-05T09:00:00Z" },
+  { id: "ev-1", collaborationId: "co-11", from: "Content Uploaded", to: "On Hold", changedBy: "anna", changedAt: "2026-06-12T09:00:00Z" },
+  { id: "ev-2", collaborationId: "co-11", from: "Content in Production", to: "Content Uploaded", changedBy: "anna", changedAt: "2026-06-10T09:00:00Z" },
+  { id: "ev-3", collaborationId: "co-11", from: "Confirmed to Proceed", to: "Content in Production", changedBy: "anna", changedAt: "2026-06-05T09:00:00Z" },
 ];
 
 export const payments: Payment[] = [

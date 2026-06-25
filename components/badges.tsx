@@ -2,6 +2,7 @@ import {
   COUNTRY_FLAG,
   PHASE_META,
   PLATFORM_LABEL,
+  STATUS_KO,
   STATUS_PHASE,
   TIER_META,
   type CampaignType,
@@ -17,6 +18,7 @@ export function StatusBadge({ status }: { status: Status }) {
   return (
     <span
       className="chip"
+      title={STATUS_KO[status]}
       style={{ color: meta.accent, borderColor: meta.accent, background: "transparent" }}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
