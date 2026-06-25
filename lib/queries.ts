@@ -154,7 +154,14 @@ export interface OverviewStats {
   executedFeeKrw: number; // sheet_krw & Paid & 콘텐츠 라이브/완료 — 집행에 가장 근접
   executedFeeCount: number;
   pipelineValueKrw: number; // sheet_krw & active — 제안가(약정 아님)
+  pipelineValueCount: number;
   paymentsRecorded: number; // payments 테이블 행수(현재 0)
+  // 근거(개발단계 검증용): 합산에 무엇이 포함/제외됐는지 원장
+  feeLedger: {
+    sheetKrw: { count: number; sum: number }; // KRW 확정 — 합산 포함
+    unverified: { count: number; sum: number }; // 통화 미확인 — 합산 제외
+    noFee: number; // fee 없음(JP 참여율 차단분 포함)
+  };
   funnel: { phase: Phase; count: number }[]; // 진행 퍼널(Sourcing 제외)
   byCountryActive: Record<string, number>;
   byManagerActive: Record<string, number>;
@@ -176,7 +183,13 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     stuck = 0,
     executedFeeKrw = 0,
     executedFeeCount = 0,
-    pipelineValueKrw = 0;
+    pipelineValueKrw = 0,
+    pipelineValueCount = 0;
+  const feeLedger = {
+    sheetKrw: { count: 0, sum: 0 },
+    unverified: { count: 0, sum: 0 },
+    noFee: 0,
+  };
   const funnelCount: Record<string, number> = {};
   const byCountryActive: Record<string, number> = {};
   const byManagerActive: Record<string, number> = {};
@@ -187,6 +200,17 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     const phase = STATUS_PHASE[v.status];
     const fee = v.contentFeeKrw ?? 0;
     const trusted = v.feeSource === "sheet_krw";
+
+    // fee 원장(전체 기준) — 합산 근거. 무엇이 포함/제외됐는지 감사용.
+    if (fee > 0 && trusted) {
+      feeLedger.sheetKrw.count++;
+      feeLedger.sheetKrw.sum += fee;
+    } else if (fee > 0 && v.feeSource === "unverified") {
+      feeLedger.unverified.count++;
+      feeLedger.unverified.sum += fee;
+    } else {
+      feeLedger.noFee++;
+    }
 
     if (v.status === "Drop") {
       dropped++;
@@ -209,6 +233,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
 
     if (trusted && fee > 0) {
       pipelineValueKrw += fee;
+      pipelineValueCount++;
       if (v.campaign.type === "Paid" && DONE_STATUSES.has(v.status)) {
         executedFeeKrw += fee;
         executedFeeCount++;
@@ -235,7 +260,9 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     executedFeeKrw,
     executedFeeCount,
     pipelineValueKrw,
+    pipelineValueCount,
     paymentsRecorded,
+    feeLedger,
     funnel: PHASES.filter((p) => p !== "Sourcing").map((p) => ({ phase: p, count: funnelCount[p] ?? 0 })),
     byCountryActive,
     byManagerActive,

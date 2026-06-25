@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import type { CollaborationView } from "@/lib/data";
-import { updateStatus } from "@/app/actions";
+import { updateCollaboration, type CollaborationPatch } from "@/app/actions";
 import {
   COLUMN_DEFAULT_STATUS,
   PHASES,
@@ -10,144 +10,116 @@ import {
   PHASE_STATUSES,
   STATUS_PHASE,
   type BoardColumn,
+  type Country,
   type Status,
 } from "@/lib/types";
-import { formatKrw } from "@/lib/utils";
+import { applyFilters, EMPTY_FILTERS, type GridFilters } from "@/lib/grid-filters";
 import { KanbanBoard } from "./KanbanBoard";
-import { CollaborationTable } from "./CollaborationTable";
+import { WorkGrid } from "./WorkGrid";
+import { FilterBar } from "./FilterBar";
 
-type ViewMode = "kanban" | "table";
+type ViewMode = "grid" | "pipeline";
+
+function applyPatch(patch: CollaborationPatch): Partial<CollaborationView> {
+  const out: Partial<CollaborationView> = {};
+  if (patch.status !== undefined) out.status = patch.status;
+  if (patch.manager !== undefined) out.manager = patch.manager;
+  if (patch.notes !== undefined) out.notes = patch.notes ?? undefined;
+  if (patch.contentFeeKrw !== undefined) out.contentFeeKrw = patch.contentFeeKrw ?? undefined;
+  if (patch.lastContact !== undefined) out.lastContact = patch.lastContact ?? undefined;
+  return out;
+}
 
 export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
   const [views, setViews] = useState(initial);
   const [, startTransition] = useTransition();
-  const [mode, setMode] = useState<ViewMode>("kanban");
-  const [manager, setManager] = useState<string>("all");
-  const [type, setType] = useState<string>("all");
-  const [q, setQ] = useState("");
+  const [mode, setMode] = useState<ViewMode>("grid");
+  // Sourcing(86.5%)이 작업면을 가리지 않게 기본 숨김 — 발굴 풀은 토글로 노출
+  const [filters, setFilters] = useState<GridFilters>({ ...EMPTY_FILTERS, hideSourcing: true });
 
   const managers = useMemo(() => Array.from(new Set(initial.map((v) => v.manager))).sort(), [initial]);
+  const countries = useMemo(
+    () => (Array.from(new Set(initial.map((v) => v.creator.country))).sort() as Country[]),
+    [initial]
+  );
+
+  // 인라인 편집 — 낙관 갱신 후 persist, 실패 시 롤백
+  const onEdit = useCallback((id: string, patch: CollaborationPatch) => {
+    let prev: CollaborationView | undefined;
+    setViews((cur) =>
+      cur.map((v) => {
+        if (v.id !== id) return v;
+        prev = v;
+        return { ...v, ...applyPatch(patch) };
+      })
+    );
+    startTransition(async () => {
+      const res = await updateCollaboration(id, patch);
+      if (!res.ok && prev) {
+        const p = prev;
+        setViews((cur) => cur.map((v) => (v.id === id ? p : v)));
+      }
+    });
+  }, []);
 
   function onMove(coId: string, col: BoardColumn) {
     const target = views.find((v) => v.id === coId);
     if (!target || STATUS_PHASE[target.status] === col) return;
-    const next: Status =
-      col === "Dropped" || col === "Seeding" ? COLUMN_DEFAULT_STATUS[col] : PHASE_STATUSES[col][0];
-    // optimistic UI, then persist to DB (trigger logs status_history)
-    setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: next } : v)));
-    persist(coId, next, target.status);
+    const next: Status = col === "Dropped" || col === "Seeding" ? COLUMN_DEFAULT_STATUS[col] : PHASE_STATUSES[col][0];
+    onEdit(coId, { status: next });
   }
 
-  // direct status change (card dropdown) — any of the 15 statuses
-  function onStatusChange(coId: string, status: Status) {
-    const target = views.find((v) => v.id === coId);
-    if (!target || target.status === status) return;
-    setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status } : v)));
-    persist(coId, status, target.status);
-  }
-
-  function persist(coId: string, next: Status, prevStatus: Status) {
-    startTransition(async () => {
-      const res = await updateStatus(coId, next);
-      if (!res.ok) {
-        setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: prevStatus } : v)));
-      }
-    });
-  }
-
-  const filtered = views.filter((v) => {
-    if (manager !== "all" && v.manager !== manager) return false;
-    if (type !== "all" && v.campaign.type !== type) return false;
-    if (q && !v.creator.handle.toLowerCase().includes(q.toLowerCase()) && !v.creator.name.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
-
-  const active = filtered.filter((v) => v.status !== "Drop");
-  const dropped = filtered.filter((v) => v.status === "Drop").length;
-  const totalFee = active.reduce((s, v) => s + (v.contentFeeKrw ?? 0), 0);
+  const filtered = useMemo(() => applyFilters(views, filters), [views, filters]);
+  const phaseCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const v of filtered) {
+      const p = STATUS_PHASE[v.status];
+      m[p] = (m[p] ?? 0) + 1;
+    }
+    return m;
+  }, [filtered]);
 
   return (
-    <div className="space-y-5">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Active collabs" value={String(active.length)} />
-        <Kpi label="In negotiation+" value={String(active.filter((v) => !["Sourcing"].includes(STATUS_PHASE[v.status])).length)} />
-        <Kpi label="Committed fee" value={formatKrw(totalFee)} />
-        <Kpi label="Dropped" value={String(dropped)} tone="muted" />
-      </div>
+    <div className="space-y-3">
+      <FilterBar
+        filters={filters}
+        onChange={setFilters}
+        managers={managers}
+        countries={countries}
+        count={filtered.length}
+        total={views.length}
+      />
 
-      {/* Phase strip */}
-      <div className="card p-3 flex flex-wrap gap-x-5 gap-y-2">
-        {PHASES.map((p) => {
-          const n = active.filter((v) => STATUS_PHASE[v.status] === p).length;
-          return (
-            <div key={p} className="flex items-center gap-2 text-sm">
-              <span className="h-2 w-2 rounded-full" style={{ background: PHASE_META[p].accent }} />
-              <span className="text-[var(--muted)]">{p}</span>
-              <span className="font-semibold tabular-nums">{n}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-[var(--border-strong)] overflow-hidden">
-          {(["kanban", "table"] as ViewMode[]).map((m) => (
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-lg border border-[var(--border-strong)] overflow-hidden shrink-0">
+          {(["grid", "pipeline"] as ViewMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-3 py-1.5 text-sm capitalize ${mode === m ? "bg-[var(--accent)] text-white" : "bg-[var(--panel)] text-[var(--muted)]"}`}
+              className={`px-3 py-1.5 text-sm capitalize ${mode === m ? "bg-[var(--accent)] text-white" : "bg-[var(--panel)] text-[var(--muted)] hover:bg-[var(--panel-2)]"}`}
             >
-              {m}
+              {m === "grid" ? "Grid" : "Pipeline"}
             </button>
           ))}
         </div>
 
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search handle…"
-          className="px-3 py-1.5 text-sm rounded-lg border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)] w-44"
-        />
-
-        <Select value={manager} onChange={setManager} label="Manager" options={["all", ...managers]} />
-        <Select value={type} onChange={setType} label="Type" options={["all", "Gifted", "Paid", "Affiliate"]} />
-
-        <span className="text-xs text-[var(--muted)] ml-auto">{filtered.length} of {views.length}</span>
+        {/* phase strip — 필터된 집합의 단계 분포(정직 카운트) */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          {PHASES.map((p) => (
+            <div key={p} className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: PHASE_META[p].accent }} />
+              <span className="text-[var(--muted)]">{p}</span>
+              <span className="font-semibold tabular-nums">{phaseCounts[p] ?? 0}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {mode === "kanban" ? (
-        <KanbanBoard views={filtered} onMove={onMove} onStatusChange={onStatusChange} />
+      {mode === "grid" ? (
+        <WorkGrid views={filtered} onEdit={onEdit} managers={managers} />
       ) : (
-        <CollaborationTable views={filtered} />
+        <KanbanBoard views={filtered} onMove={onMove} onStatusChange={(id, s) => onEdit(id, { status: s })} />
       )}
     </div>
-  );
-}
-
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "muted" }) {
-  return (
-    <div className="card p-4">
-      <div className="text-xs text-[var(--muted)]">{label}</div>
-      <div className={`text-2xl font-bold mt-1 tabular-nums ${tone === "muted" ? "text-[var(--faint)]" : ""}`}>{value}</div>
-    </div>
-  );
-}
-
-function Select({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: string[] }) {
-  return (
-    <label className="inline-flex items-center gap-1.5 text-sm">
-      <span className="text-[var(--muted)] text-xs">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="px-2 py-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)] capitalize"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
-    </label>
   );
 }
