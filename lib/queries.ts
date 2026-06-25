@@ -1,7 +1,7 @@
 import { createServerClient } from "./supabase";
 import * as mock from "./data";
 import type { CollaborationView } from "./data";
-import type { Campaign, Creator, Payment, StatusEvent } from "./types";
+import { STATUS_PHASE, type Campaign, type Creator, type Payment, type StatusEvent } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -93,6 +93,48 @@ export async function fetchStatusEvents(collaborationId: string): Promise<Status
     changedAt: r.changed_at,
     note: r.note ?? undefined,
   }));
+}
+
+export interface Stats {
+  total: number;
+  creators: number;
+  byPhase: Record<string, number>;
+  byStatus: Record<string, number>;
+  byCountry: Record<string, number>;
+  byCampaign: Record<string, number>;
+  withListedDate: number;
+  withPostUrl: number;
+}
+
+export async function fetchStats(): Promise<Stats> {
+  const views = await fetchCollaborationViews();
+  const byPhase: Record<string, number> = {};
+  const byStatus: Record<string, number> = {};
+  const byCountry: Record<string, number> = {};
+  const byCampaign: Record<string, number> = {};
+  const creatorIds = new Set<string>();
+  let withListedDate = 0;
+  let withPostUrl = 0;
+  for (const v of views) {
+    const phase = STATUS_PHASE[v.status];
+    byPhase[phase] = (byPhase[phase] ?? 0) + 1;
+    byStatus[v.status] = (byStatus[v.status] ?? 0) + 1;
+    byCountry[v.creator.country] = (byCountry[v.creator.country] ?? 0) + 1;
+    byCampaign[v.campaign.type] = (byCampaign[v.campaign.type] ?? 0) + 1;
+    creatorIds.add(v.creatorId);
+    if (v.listedDate) withListedDate++;
+    if (v.postUrl) withPostUrl++;
+  }
+  return {
+    total: views.length,
+    creators: creatorIds.size,
+    byPhase,
+    byStatus,
+    byCountry,
+    byCampaign,
+    withListedDate,
+    withPostUrl,
+  };
 }
 
 export async function fetchPayment(collaborationId: string): Promise<Payment | undefined> {

@@ -155,6 +155,7 @@ for pattern, default_country in SOURCES:
         listed=find_col(hdr, "listing date", "리스트업 날짜", "리스트업 일자", "리스트업\n일자", "리스트업"),
         last_contact=find_col(hdr, "last contact", "최근 소통", "소통 일자", "소통일자"),
         scheduled=find_col(hdr, "scheduled upload", "scheduled post", "업로드 예정", "업로드예정", "업로드\n예정일", "예정일"),
+        post_url=find_col(hdr, "upload link", "업로드 링크", "post url", "original video"),
     )
     cnt = 0
     for r in data:
@@ -181,6 +182,7 @@ for pattern, default_country in SOURCES:
             "fee": to_int(g("fee")), "cpv": to_num(g("cpv")),
             "listed_date": to_date(g("listed")), "last_contact": to_date(g("last_contact")),
             "scheduled_post_date": to_date(g("scheduled")),
+            "post_url": (g("post_url") if g("post_url").startswith("http") else None),
         })
         cnt += 1
     print(f"  {pattern}: {cnt}건 (헤더 {hi+1}행)")
@@ -218,7 +220,7 @@ for r in records:
         "status": r["status"], "manager": r["manager"],
         "content_fee_krw": r["fee"], "cpv": r["cpv"],
         "listed_date": r["listed_date"], "last_contact": r["last_contact"],
-        "scheduled_post_date": r["scheduled_post_date"],
+        "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
     })
 insert_batched("collaborations", col_payload)
 print(f"협업: {len(col_payload)}")

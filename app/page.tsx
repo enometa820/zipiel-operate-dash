@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DashboardClient } from "@/components/DashboardClient";
 import { fetchCollaborationViews } from "@/lib/queries";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -18,7 +19,10 @@ export default async function Home() {
             Global influencer seeding &amp; collaboration pipeline
           </p>
         </div>
-        <span className="chip">{live ? "Supabase · live" : "Demo data · DB not connected"}</span>
+        <div className="flex items-center gap-3">
+          <Link href="/status" className="text-sm text-[var(--accent)] hover:underline">개발 현황</Link>
+          <span className="chip">{live ? "Supabase · live" : "Demo data · DB not connected"}</span>
+        </div>
       </header>
 
       <DashboardClient initial={views} />
