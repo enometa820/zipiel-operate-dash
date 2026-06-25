@@ -37,6 +37,7 @@ function mapCollab(r: any): CollaborationView {
     postUrl: r.post_url ?? undefined,
     lastContact: r.last_contact ?? undefined,
     listedDate: r.listed_date ?? undefined,
+    scheduledPostDate: r.scheduled_post_date ?? undefined,
     notes: r.notes ?? undefined,
     creator: mapCreator(r.creator),
     campaign: mapCampaign(r.campaign),
@@ -55,7 +56,7 @@ export async function fetchCollaborationViews(): Promise<CollaborationView[]> {
     const { data, error } = await sb
       .from("collaborations")
       .select(SELECT)
-      .order("last_contact", { ascending: false, nullsFirst: false })
+      .order("listed_date", { ascending: false, nullsFirst: false })
       .range(from, from + PAGE - 1);
     if (error) break;
     if (!data || data.length === 0) break;

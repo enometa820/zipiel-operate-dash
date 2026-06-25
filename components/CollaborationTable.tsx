@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CollaborationView } from "@/lib/data";
-import { formatCompact, formatKrw, daysAgo } from "@/lib/utils";
+import { formatCompact, formatKrw, formatDate } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, StatusBadge, TierBadge } from "./badges";
 
 const col = createColumnHelper<CollaborationView>();
@@ -58,7 +58,9 @@ export function CollaborationTable({ views }: { views: CollaborationView[] }) {
         header: "Fee",
         cell: (c) => <span className="tabular-nums">{c.getValue() ? formatKrw(c.getValue() as number) : "—"}</span>,
       }),
-      col.accessor((r) => r.lastContact ?? "", { id: "last", header: "Last contact", cell: (c) => <span className="text-[var(--muted)]">{daysAgo(c.getValue() as string)}</span> }),
+      col.accessor((r) => r.listedDate ?? "", { id: "listed", header: "Listed", cell: (c) => <span className="text-[var(--muted)] tabular-nums">{formatDate(c.getValue() as string)}</span> }),
+      col.accessor((r) => r.lastContact ?? "", { id: "last", header: "Last contact", cell: (c) => <span className="text-[var(--muted)] tabular-nums">{formatDate(c.getValue() as string)}</span> }),
+      col.accessor((r) => r.scheduledPostDate ?? "", { id: "scheduled", header: "Scheduled", cell: (c) => <span className="text-[var(--muted)] tabular-nums">{formatDate(c.getValue() as string)}</span> }),
     ],
     []
   );

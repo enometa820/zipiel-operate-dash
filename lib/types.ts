@@ -121,6 +121,7 @@ export interface Collaboration {
   postUrl?: string;
   lastContact?: string;
   listedDate?: string;
+  scheduledPostDate?: string;
   notes?: string;
 }
 

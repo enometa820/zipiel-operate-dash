@@ -92,6 +92,15 @@ def to_num(x):
     try: n = float(x) if x else None
     except: return None
     return n if (n is not None and n < 1_000_000) else None  # CPV 100만 상한
+def to_date(x):
+    # sheet uses '2026.04.08' / '2026. 5. 25' / '2026-04-08' -> ISO
+    m = re.search(r"(20\d{2})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})", (x or ""))
+    if not m: return None
+    y, mo, d = m.groups()
+    try:
+        if not (1 <= int(mo) <= 12 and 1 <= int(d) <= 31): return None
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+    except: return None
 def handle_from(url, name):
     if url:
         m = re.search(r"(?:instagram|tiktok|xiaohongshu|xhslink|youtube|threads|x|twitter)\.com/@?([\w.\-]+)", url)
@@ -143,6 +152,9 @@ for pattern, default_country in SOURCES:
         fee=find_col(hdr, "content cost", "content fee", "콘텐츠 비용", "rate"),
         cpv=find_col(hdr, "cpv"),
         avgviews=find_col(hdr, "average views", "avg views", "평균조회수", "평균 조회수"),
+        listed=find_col(hdr, "listing date", "리스트업 날짜", "리스트업 일자", "리스트업\n일자", "리스트업"),
+        last_contact=find_col(hdr, "last contact", "최근 소통", "소통 일자", "소통일자"),
+        scheduled=find_col(hdr, "scheduled upload", "scheduled post", "업로드 예정", "업로드예정", "업로드\n예정일", "예정일"),
     )
     cnt = 0
     for r in data:
@@ -167,6 +179,8 @@ for pattern, default_country in SOURCES:
             "avg_views": to_int(g("avgviews")),
             "status": map_status(g("status")), "campaign_type": map_campaign(g("campaign")),
             "fee": to_int(g("fee")), "cpv": to_num(g("cpv")),
+            "listed_date": to_date(g("listed")), "last_contact": to_date(g("last_contact")),
+            "scheduled_post_date": to_date(g("scheduled")),
         })
         cnt += 1
     print(f"  {pattern}: {cnt}건 (헤더 {hi+1}행)")
@@ -203,6 +217,8 @@ for r in records:
         "creator_id": cid, "campaign_id": camp_id[r["campaign_type"]],
         "status": r["status"], "manager": r["manager"],
         "content_fee_krw": r["fee"], "cpv": r["cpv"],
+        "listed_date": r["listed_date"], "last_contact": r["last_contact"],
+        "scheduled_post_date": r["scheduled_post_date"],
     })
 insert_batched("collaborations", col_payload)
 print(f"협업: {len(col_payload)}")

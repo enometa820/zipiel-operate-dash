@@ -14,6 +14,11 @@ export function formatCompact(n: number): string {
   return Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }
 
+export function formatDate(iso?: string): string {
+  if (!iso) return "—";
+  return iso.slice(0, 10); // 2026-04-08
+}
+
 export function daysAgo(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso).getTime();

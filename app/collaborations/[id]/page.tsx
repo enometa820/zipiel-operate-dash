@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchCollaborationView, fetchPayment, fetchStatusEvents } from "@/lib/queries";
-import { formatCompact, formatKrw, daysAgo } from "@/lib/utils";
+import { formatCompact, formatKrw, formatDate, daysAgo } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusEditor } from "@/components/StatusEditor";
 import { STATUS_KO, type TaxType } from "@/lib/types";
@@ -70,6 +70,11 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <Row label="CPV (₩/view)" value={cpvDisplay} />
           <Row label="Tracking #" value={co.trackingNumber ?? "—"} />
           <Row label="Post" value={co.postUrl ? <a className="text-[var(--accent)] hover:underline" href={co.postUrl} target="_blank" rel="noreferrer">View ↗</a> : "—"} />
+          <div className="mt-2 pt-2 border-t border-[var(--border)]">
+            <Row label="Listed date" value={formatDate(co.listedDate)} />
+            <Row label="Last contact" value={formatDate(co.lastContact)} />
+            <Row label="Scheduled upload" value={formatDate(co.scheduledPostDate)} />
+          </div>
           <p className="text-[11px] text-[var(--faint)] mt-2">CPV = content fee ÷ avg views of last 6 posts</p>
           {co.notes && <p className="text-sm text-[var(--muted)] mt-3 pt-3 border-t border-[var(--border)]">{co.notes}</p>}
         </div>
