@@ -14,7 +14,8 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 
 - Next.js 16(App Router) · React 19 · Tailwind v4 · @dnd-kit(칸반) · @tanstack/react-table · Supabase(예정).
 - 명령: `npm run dev` / `npm run build` / `npm run lint`.
-- 데이터: 현재 `lib/data.ts` 목 데이터 → Supabase로 교체 예정. 스키마 정본 = `db/migrations/`.
+- **데이터: Supabase 클라우드 연결됨(2026-06-25)**. 프로젝트 `seeding-ops`(ref `edfbpvmtcghflcqljpcp`, 서울), 별도 계정 `enometa@theframeless.co` org. 토큰·DB비번 = `~/.vault/zipiel/supabase-seeding.env`. 앱 연결값 = `.env.local`(gitignore, URL·anon·service key). `lib/queries.ts`가 fetch(env 없으면 `lib/data.ts` 목 폴백). 스키마 정본 = `db/migrations/` = `supabase/migrations/`. 스키마 변경 = `supabase db push`, 시드 = `supabase db reset --linked`.
+- **RLS 주의**: 전 테이블 RLS enabled·정책 미설정 → 현재 서버가 service key로 읽음(RLS 우회). 클라이언트 직접 쿼리 전에 read 정책 추가 필요. PII(이메일·주소) 최소권한 정책도.
 - 상태머신: `lib/types.ts`의 `STATUS_PHASE`(14상태 → 6페이즈). 현재 상태는 `collaborations` 본체, 전이는 `collaboration_status_history` append-only.
 
 ## 규칙
