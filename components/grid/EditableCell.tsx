@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // 인라인 편집 셀. 낙관 갱신·persist는 상위(DashboardClient)가 onEdit으로 처리.
 // select = 즉시 commit, text/number/date = blur·Enter commit.
@@ -45,7 +45,12 @@ export function TextCell({
   type?: "text" | "number" | "date";
 }) {
   const [v, setV] = useState(value);
-  useEffect(() => setV(value), [value]); // 외부 값(낙관 갱신/재fetch) 동기화
+  // 외부 값(낙관 갱신/재fetch) 변경 시 렌더 중 동기화 — effect 없이(React 권장 패턴)
+  const [synced, setSynced] = useState(value);
+  if (value !== synced) {
+    setSynced(value);
+    setV(value);
+  }
 
   return (
     <input
