@@ -1,14 +1,15 @@
-meta: {repo: zipiel-operate-dash, updated: 2026-06-25 18:30 KST}
-status_line: 공유 가능 수준 달성 — 협업 14,110건 적재·effie 정본 15상태·앱 인증(theframeless!)·날짜·한글 개발현황탭(/status, NavTabs)까지 완료. 다음 = 운영팀(effie·매니저) 공유 후 피드백.
+meta: {repo: zipiel-operate-dash, updated: 2026-06-26 KST}
+status_line: 운영팀 피드백(데이터 안 맞음·UX 불편) 대응 완료 — 데이터 정합(fee 출처 격리·매니저 정규화·정직 KPI) + UX 전면개편(보는/하는 분리·시트형 그리드·지급입력·근거표기) + 속도 최적화. 다음 = 팀 공유·지급 입력으로 Executed fee 실값화.
 facts:
-  commit: d1e4384(탭 네비) + 이 sse 커밋(/init CLAUDE.md 아키텍처 섹션·stale 교정)
-  git: CLAUDE.md만 dirty(이 sse가 커밋)
-  prod: vercel zipiel-operate-dash, Protection 해제, 앱 로그인만(theframeless!)
+  commit: 00a7b00(icn1 리전) 외 8커밋 — fee격리·UX분리·payments·제안가폐기·로딩·perf
+  git: clean (전부 push됨, origin/main)
+  prod: https://zipiel-operate-dash.vercel.app (로그인 theframeless!), icn1 리전, 실측 Overview~1.3s·board~0.5s
+  data: 협업 14,110 그대로, fee_source 격리(sheet_krw 149·unverified 70·null 13891), payments 0행
 next:
-  - {task: "운영팀(effie·매니저) 공유 → 피드백 수집. 공유 URL=vercel ls --prod 최신, 로그인 theframeless!", done: false}
-  - {task: "계약서/지급 워크플로 — effie 정의의 suyoung 알람·#재무회계방 연동", done: false}
-  - {task: "선택 폴리시 — 모바일 KPI 큰금액 잘림·짧은 URL(zipiel-seeding.vercel.app)", done: false}
+  - {task: "실제 지급(payments) 입력 시작 → Executed fee 실집행값화. Deal페이지 Record payment(금액·거주지세금·상태)", done: false}
+  - {task: "운영팀(effie·매니저) 공유 후 피드백. 공유 메시지 초안 작성됨(슬랙 #이용진-mkt오퍼레이션-대시보드 게시 대기, '올려줘' 시 게시)", done: false}
+  - {task: "선택: Overview를 DB측 집계(RPC)로 — 14k 조회 자체 제거. 모바일 카피·시각화 추가 피드백 반영", done: false}
 cautions:
-  - 프로덕션 로그인은 실브라우저 정상(서버로그 POST /login 303→GET / 200), playwright는 secure 쿠키 미유지로 자동검증 불가 — 로컬 빌드본 npx next start로 검증
-  - 잔여 데이터 갭은 버그 아닌 시트 부재 — content 성과(views·likes)·SGP 빈행 87·Simple Seeding/PR status 거의 없음. /status 탭이 투명 공개
-  - 실데이터 재적재 = python scripts/etl_seeding.py — supabase db reset --linked는 목 seed로 되돌리니 금지
+  - "taskkill //IM node.exe 금지 — MCP 서버(playwright 등)·세션까지 죽임(이번에 playwright 끊김). 포트 PID만 kill: netstat | grep :PORT → taskkill //PID"
+  - Executed fee가 ₩200/시트추정인 건 버그 아님 — payments 0행이라 그럼. 지급 입력하면 실값 전환(검증 완료)
+  - 작업면 기본 active만 로드(sourcing 제외) — ?all=1로 발굴 풀 전체, manager/country 필터 옵션도 기본은 active 기준. 재적재=python scripts/etl_seeding.py

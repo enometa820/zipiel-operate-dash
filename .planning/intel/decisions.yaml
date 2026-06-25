@@ -1,4 +1,4 @@
-meta: {project: zipiel-operate-dash, updated: 2026-06-25, schema_version: 1}
+meta: {project: zipiel-operate-dash, updated: 2026-06-26, schema_version: 1}
 decisions:
   - {id: D-1, title: "Supabase 클라우드 신규 계정", context: "enometa820 계정이 무료 2개 한도 초과, 로컬 Docker는 기동 느림", decision: "enometa@theframeless.co 새 계정 org에 seeding-ops 프로젝트(서울)", status: accepted, updated: 2026-06-25}
   - {id: D-2, title: "국가탭 전체 투입", context: "On-Air 1탭(79건)만으론 부족, 시트에 수천 크리에이터", decision: "KR·CN·JP·TW·SG·US 전 [List] 탭 통합 → 크리에이터 12,845·협업 14,110", status: accepted, updated: 2026-06-25}
@@ -6,3 +6,8 @@ decisions:
   - {id: D-4, title: "상태머신 effie 시트 정본 일치", context: "임의 영문 14상태가 시트 드롭다운과 불일치(스노우볼 위험)", decision: "effie 스크린샷 드롭다운 정본 15상태 EN 라벨로 전면 교체(DB enum 0003)", status: accepted, updated: 2026-06-25}
   - {id: D-5, title: "한글 개발현황 탭", context: "비개발자(effie·매니저)가 현황·진행을 이해해야 함", decision: "/status 한글 페이지(데이터현황·기능·개발로그) + NavTabs 명확 노출", status: accepted, updated: 2026-06-25}
   - {id: D-6, title: "데이터 갭은 시트 부재로 인정", context: "content 성과·SGP 절반 누락 조사 결과 시트 자체에 데이터 없음", decision: "버그 처리 대신 구조만 준비, /status에 투명 공개, 시트 채워지면 자동 반영", status: accepted, updated: 2026-06-25}
+  - {id: D-7, title: "보는/하는 화면 분리", context: "운영팀 피드백 '데이터 안 맞고 UX 불편, 대시보드처럼 보고싶다'", decision: "/=Overview(매니저·effie 건강도, 가장 중요한 화면) + /board=Work board(운영자 시트형 작업면), NavTabs 3탭", status: accepted, updated: 2026-06-26}
+  - {id: D-8, title: "금액은 실집행만, 제안가 총합 폐기", context: "시트 content_fee는 합의·약정·전망이 아닌 입력값 — 합산하면 '가짜 약정 2억' 함정 재발", decision: "Overview 금액=Executed fee 하나(payments paid 우선, 없으면 시트추정 라벨). fee_source 게이트(JP 참여율·TW 통화미확인 제외). 제안가(Pipeline value) 총합은 헤드라인·basis 모두 제거, 건수만", status: accepted, updated: 2026-06-26}
+  - {id: D-9, title: "시트 재현+코드로 병목 해소, 가로 스크롤 지양", context: "작업자가 구글시트에 익숙(행=협업 생애주기), 칸반 카드상한이 멘탈모델과 충돌; 팀이 가로 스크롤 싫어함", decision: "Work board 기본=화면폭 fit-to-width 시트형 그리드(가로스크롤 X, 핵심 10컬럼·나머지는 Deal Page), 인라인 편집. 칸반은 Pipeline 보조탭, Table 탭 제거", status: accepted, updated: 2026-06-26}
+  - {id: D-10, title: "합산엔 근거 동반(개발단계)", context: "개발단계라 수치가 옳은지 판단 가능해야 함", decision: "Overview 집계 금액·건수에 산출 근거(포함/제외 규칙·fee 원장) 표기 — Data basis details. scripts/diagnose_fees.py로 교차검증", status: accepted, updated: 2026-06-26}
+  - {id: D-11, title: "작업면 기본 active만 로드(성능)", context: "14k 전체 조회로 board 5.4s; sourcing 86.5%가 작업면 가림", decision: "Work board 기본=sourcing 제외 active(~1.9k)만 로드(캐시·병렬조회로 빠름), ?all=1로 발굴 풀 전체. Vercel 함수 리전 icn1(서울)로 Supabase와 co-locate", status: accepted, updated: 2026-06-26}
