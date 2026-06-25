@@ -1,7 +1,8 @@
 import { createServerClient } from "./supabase";
+import { unstable_cache } from "next/cache";
 import * as mock from "./data";
 import type { CollaborationView } from "./data";
-import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type StatusEvent } from "./types";
+import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type Status, type StatusEvent } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -46,27 +47,109 @@ function mapCollab(r: any): CollaborationView {
 }
 
 const SELECT = "*, creator:creators(*), campaign:campaigns(*)";
+const PAGE = 1000; // Supabase caps rows at 1000/request — paginate.
 
-export async function fetchCollaborationViews(): Promise<CollaborationView[]> {
-  const sb = createServerClient();
-  if (!sb) return mock.getCollaborationViews();
-  // Supabase caps rows at 1000 per request — paginate to fetch all.
-  const all: unknown[] = [];
-  const PAGE = 1000;
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from("collaborations")
-      .select(SELECT)
-      .order("listed_date", { ascending: false, nullsFirst: false })
-      .range(from, from + PAGE - 1);
-    if (error) break;
-    if (!data || data.length === 0) break;
-    all.push(...data);
-    if (data.length < PAGE) break;
-  }
-  if (all.length === 0) return mock.getCollaborationViews();
-  return all.map(mapCollab);
+// 병렬 페이지네이션 — 1000행씩 15회 순차 왕복 대신, count로 페이지 수 파악 후 동시 요청.
+// 정렬에 unique id 타이브레이커를 붙여 병렬 range가 겹치거나 누락되지 않게(안정 정렬).
+async function pagedAll(
+  sb: any,
+  select: string,
+  orders: { col: string; asc: boolean }[],
+  modify?: (q: any) => any
+): Promise<any[]> {
+  const build = (q: any) => {
+    const ordered = orders.reduce((acc: any, o) => acc.order(o.col, { ascending: o.asc, nullsFirst: false }), q);
+    return modify ? modify(ordered) : ordered;
+  };
+  const { data: first, count, error } = await build(sb.from("collaborations").select(select, { count: "exact" })).range(0, PAGE - 1);
+  if (error || !first) return [];
+  if (!count || count <= PAGE) return first;
+  const nPages = Math.ceil(count / PAGE);
+  const rest = await Promise.all(
+    Array.from({ length: nPages - 1 }, (_, i) =>
+      build(sb.from("collaborations").select(select))
+        .range((i + 1) * PAGE, (i + 2) * PAGE - 1)
+        .then((r: any) => r.data ?? [])
+    )
+  );
+  return [first, ...rest].flat();
 }
+
+const VIEW_ORDER = [
+  { col: "listed_date", asc: false },
+  { col: "id", asc: true },
+];
+// Sourcing(발굴 풀) 제외 — 작업면 기본 로드. 14k → ~1.9k로 줄여 빠르고 캐시 가능.
+const NOT_SOURCING = (q: any) => q.not("status", "in", '("Listing","Contact Completed")');
+
+async function rawViews(includeSourcing: boolean): Promise<CollaborationView[]> {
+  const sb = createServerClient();
+  if (!sb) {
+    const m = mock.getCollaborationViews();
+    return includeSourcing ? m : m.filter((v) => STATUS_PHASE[v.status] !== "Sourcing");
+  }
+  const rows = await pagedAll(sb, SELECT, VIEW_ORDER, includeSourcing ? undefined : NOT_SOURCING);
+  if (rows.length) return rows.map(mapCollab);
+  return includeSourcing ? mock.getCollaborationViews() : [];
+}
+
+// 캐시 — 편집 시 revalidateTag("collabs")로 무효화. active(작음)는 캐시되어 재방문 즉시.
+const getViewsAll = unstable_cache(() => rawViews(true), ["collab-views-all"], { tags: ["collabs"], revalidate: 300 });
+const getViewsActive = unstable_cache(() => rawViews(false), ["collab-views-active"], { tags: ["collabs"], revalidate: 300 });
+
+export async function fetchCollaborationViews(opts?: { includeSourcing?: boolean }): Promise<CollaborationView[]> {
+  return opts?.includeSourcing ? getViewsAll() : getViewsActive();
+}
+
+// ---- 집계용 최소 컬럼(facts) — Overview·개발현황은 14k 전체 대신 가벼운 페이로드로 ----
+export interface CollabFact {
+  status: Status;
+  contentFeeKrw: number;
+  feeSource?: string;
+  lastContact?: string;
+  listedDate?: string;
+  hasPostUrl: boolean;
+  manager: string;
+  creatorId: string;
+  country: string;
+  campaignType: string;
+}
+
+const FACTS_SELECT =
+  "status,content_fee_krw,fee_source,last_contact,listed_date,post_url,manager,creator_id,creator:creators(country),campaign:campaigns(type)";
+
+async function rawFacts(): Promise<CollabFact[]> {
+  const sb = createServerClient();
+  if (!sb) {
+    return mock.getCollaborationViews().map((v) => ({
+      status: v.status,
+      contentFeeKrw: v.contentFeeKrw ?? 0,
+      feeSource: v.feeSource,
+      lastContact: v.lastContact,
+      listedDate: v.listedDate,
+      hasPostUrl: Boolean(v.postUrl),
+      manager: v.manager,
+      creatorId: v.creatorId,
+      country: v.creator.country,
+      campaignType: v.campaign.type,
+    }));
+  }
+  const all = await pagedAll(sb, FACTS_SELECT, [{ col: "id", asc: true }]);
+  return all.map((r) => ({
+    status: r.status,
+    contentFeeKrw: r.content_fee_krw ?? 0,
+    feeSource: r.fee_source ?? undefined,
+    lastContact: r.last_contact ?? undefined,
+    listedDate: r.listed_date ?? undefined,
+    hasPostUrl: Boolean(r.post_url),
+    manager: r.manager,
+    creatorId: r.creator_id,
+    country: r.creator?.country ?? "?",
+    campaignType: r.campaign?.type ?? "?",
+  }));
+}
+
+const getFacts = unstable_cache(rawFacts, ["collab-facts"], { tags: ["collabs"], revalidate: 300 });
 
 export async function fetchCollaborationView(id: string): Promise<CollaborationView | undefined> {
   const sb = createServerClient();
@@ -108,7 +191,7 @@ export interface Stats {
 }
 
 export async function fetchStats(): Promise<Stats> {
-  const views = await fetchCollaborationViews();
+  const facts = await getFacts();
   const byPhase: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
   const byCountry: Record<string, number> = {};
@@ -116,18 +199,18 @@ export async function fetchStats(): Promise<Stats> {
   const creatorIds = new Set<string>();
   let withListedDate = 0;
   let withPostUrl = 0;
-  for (const v of views) {
-    const phase = STATUS_PHASE[v.status];
+  for (const f of facts) {
+    const phase = STATUS_PHASE[f.status];
     byPhase[phase] = (byPhase[phase] ?? 0) + 1;
-    byStatus[v.status] = (byStatus[v.status] ?? 0) + 1;
-    byCountry[v.creator.country] = (byCountry[v.creator.country] ?? 0) + 1;
-    byCampaign[v.campaign.type] = (byCampaign[v.campaign.type] ?? 0) + 1;
-    creatorIds.add(v.creatorId);
-    if (v.listedDate) withListedDate++;
-    if (v.postUrl) withPostUrl++;
+    byStatus[f.status] = (byStatus[f.status] ?? 0) + 1;
+    byCountry[f.country] = (byCountry[f.country] ?? 0) + 1;
+    byCampaign[f.campaignType] = (byCampaign[f.campaignType] ?? 0) + 1;
+    creatorIds.add(f.creatorId);
+    if (f.listedDate) withListedDate++;
+    if (f.hasPostUrl) withPostUrl++;
   }
   return {
-    total: views.length,
+    total: facts.length,
     creators: creatorIds.size,
     byPhase,
     byStatus,
@@ -175,7 +258,7 @@ function daysSince(iso?: string): number | null {
 }
 
 export async function fetchOverviewStats(): Promise<OverviewStats> {
-  const views = await fetchCollaborationViews();
+  const facts = await getFacts();
   const creatorIds = new Set<string>();
   let discoveryPool = 0,
     dropped = 0,
@@ -196,24 +279,24 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const byManagerActive: Record<string, number> = {};
   const byCampaignActive: Record<string, number> = {};
 
-  for (const v of views) {
-    creatorIds.add(v.creatorId);
-    const phase = STATUS_PHASE[v.status];
-    const fee = v.contentFeeKrw ?? 0;
-    const trusted = v.feeSource === "sheet_krw";
+  for (const f of facts) {
+    creatorIds.add(f.creatorId);
+    const phase = STATUS_PHASE[f.status];
+    const fee = f.contentFeeKrw;
+    const trusted = f.feeSource === "sheet_krw";
 
     // fee 원장(전체 기준) — 합산 근거. 무엇이 포함/제외됐는지 감사용.
     if (fee > 0 && trusted) {
       feeLedger.sheetKrw.count++;
       feeLedger.sheetKrw.sum += fee;
-    } else if (fee > 0 && v.feeSource === "unverified") {
+    } else if (fee > 0 && f.feeSource === "unverified") {
       feeLedger.unverified.count++;
       feeLedger.unverified.sum += fee;
     } else {
       feeLedger.noFee++;
     }
 
-    if (v.status === "Drop") {
+    if (f.status === "Drop") {
       dropped++;
       continue;
     }
@@ -223,19 +306,19 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     }
     // 여기부터 = active pipeline (Drop·Sourcing 제외)
     activePipeline++;
-    byCountryActive[v.creator.country] = (byCountryActive[v.creator.country] ?? 0) + 1;
-    byManagerActive[v.manager] = (byManagerActive[v.manager] ?? 0) + 1;
-    byCampaignActive[v.campaign.type] = (byCampaignActive[v.campaign.type] ?? 0) + 1;
+    byCountryActive[f.country] = (byCountryActive[f.country] ?? 0) + 1;
+    byManagerActive[f.manager] = (byManagerActive[f.manager] ?? 0) + 1;
+    byCampaignActive[f.campaignType] = (byCampaignActive[f.campaignType] ?? 0) + 1;
     funnelCount[phase] = (funnelCount[phase] ?? 0) + 1;
 
-    if (DONE_STATUSES.has(v.status)) contentLive++;
-    const d = daysSince(v.lastContact);
+    if (DONE_STATUSES.has(f.status)) contentLive++;
+    const d = daysSince(f.lastContact);
     if (d === null || d >= STUCK_DAYS) stuck++;
 
     if (trusted && fee > 0) {
       pipelineValueKrw += fee;
       pipelineValueCount++;
-      if (v.campaign.type === "Paid" && DONE_STATUSES.has(v.status)) {
+      if (f.campaignType === "Paid" && DONE_STATUSES.has(f.status)) {
         executedFeeKrw += fee;
         executedFeeCount++;
       }
@@ -262,7 +345,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const executedFromPayments = paidCount > 0;
 
   return {
-    total: views.length,
+    total: facts.length,
     creators: creatorIds.size,
     discoveryPool,
     activePipeline,

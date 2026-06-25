@@ -6,8 +6,10 @@ import { supabaseConfigured } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 // Work board (하는 화면) — 운영자가 시트처럼 협업을 굴리는 작업면.
-export default async function BoardPage() {
-  const views = await fetchCollaborationViews();
+// 기본은 sourcing 제외(active만, 빠름). ?all=1이면 발굴 풀까지 전체 로드.
+export default async function BoardPage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
+  const all = (await searchParams)?.all === "1";
+  const views = await fetchCollaborationViews({ includeSourcing: all });
   const live = supabaseConfigured();
   return (
     <div className="max-w-[1500px] mx-auto px-5 py-6">
@@ -28,7 +30,7 @@ export default async function BoardPage() {
         </div>
       </header>
 
-      <DashboardClient initial={views} />
+      <DashboardClient initial={views} loadedAll={all} />
     </div>
   );
 }

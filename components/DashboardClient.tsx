@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { CollaborationView } from "@/lib/data";
 import { updateCollaboration, type CollaborationPatch } from "@/app/actions";
 import {
@@ -30,12 +31,25 @@ function applyPatch(patch: CollaborationPatch): Partial<CollaborationView> {
   return out;
 }
 
-export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
+export function DashboardClient({ initial, loadedAll = true }: { initial: CollaborationView[]; loadedAll?: boolean }) {
+  const router = useRouter();
   const [views, setViews] = useState(initial);
   const [, startTransition] = useTransition();
   const [mode, setMode] = useState<ViewMode>("grid");
-  // Sourcing(86.5%)이 작업면을 가리지 않게 기본 숨김 — 발굴 풀은 토글로 노출
-  const [filters, setFilters] = useState<GridFilters>({ ...EMPTY_FILTERS, hideSourcing: true });
+  // 기본은 sourcing 숨김(active만 로드됨). loadedAll이면 발굴 풀까지 로드된 상태.
+  const [filters, setFilters] = useState<GridFilters>({ ...EMPTY_FILTERS, hideSourcing: !loadedAll });
+
+  // 발굴 풀을 보려면(hideSourcing 해제) 전체 로드로 이동 — 기본 로드엔 sourcing이 없음.
+  const onFilterChange = useCallback(
+    (next: GridFilters) => {
+      if (!loadedAll && next.hideSourcing === false) {
+        router.push("/board?all=1");
+        return;
+      }
+      setFilters(next);
+    },
+    [loadedAll, router]
+  );
 
   const managers = useMemo(() => Array.from(new Set(initial.map((v) => v.manager))).sort(), [initial]);
   const countries = useMemo(
@@ -83,7 +97,7 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
     <div className="space-y-3">
       <FilterBar
         filters={filters}
-        onChange={setFilters}
+        onChange={onFilterChange}
         managers={managers}
         countries={countries}
         count={filtered.length}

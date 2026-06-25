@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Status, TaxType } from "@/lib/types";
 
@@ -11,6 +11,7 @@ export async function updateStatus(id: string, status: Status) {
   if (!sb) return { ok: false, reason: "no-db" as const };
   const { error } = await sb.from("collaborations").update({ status }).eq("id", id);
   if (error) return { ok: false, reason: error.message };
+  revalidateTag("collabs", "max");
   revalidatePath("/");
   revalidatePath("/board");
   revalidatePath(`/collaborations/${id}`);
@@ -47,6 +48,7 @@ export async function updateCollaboration(id: string, patch: CollaborationPatch)
   if (Object.keys(dbPatch).length === 0) return { ok: false, reason: "empty" as const };
   const { error } = await sb.from("collaborations").update(dbPatch).eq("id", id);
   if (error) return { ok: false, reason: error.message };
+  revalidateTag("collabs", "max");
   revalidatePath("/");
   revalidatePath("/board");
   revalidatePath(`/collaborations/${id}`);
@@ -92,6 +94,7 @@ export async function upsertPayment(collaborationId: string, input: PaymentInput
     ? await sb.from("payments").update(row).eq("id", existing.id)
     : await sb.from("payments").insert(row);
   if (res.error) return { ok: false, reason: res.error.message };
+  revalidateTag("collabs", "max");
   revalidatePath(`/collaborations/${collaborationId}`);
   revalidatePath("/");
   return { ok: true as const };
