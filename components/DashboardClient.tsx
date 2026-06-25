@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { CollaborationView } from "@/lib/data";
+import { updateStatus } from "@/app/actions";
 import {
   PHASES,
   PHASE_META,
@@ -18,6 +19,7 @@ type ViewMode = "kanban" | "table";
 
 export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
   const [views, setViews] = useState(initial);
+  const [, startTransition] = useTransition();
   const [mode, setMode] = useState<ViewMode>("kanban");
   const [manager, setManager] = useState<string>("all");
   const [type, setType] = useState<string>("all");
@@ -26,14 +28,18 @@ export function DashboardClient({ initial }: { initial: CollaborationView[] }) {
   const managers = useMemo(() => Array.from(new Set(initial.map((v) => v.manager))).sort(), [initial]);
 
   function onMove(coId: string, col: Col) {
-    setViews((prev) =>
-      prev.map((v) => {
-        if (v.id !== coId) return v;
-        if (STATUS_PHASE[v.status] === col) return v;
-        const next = col === "Dropped" ? "Dropped" : PHASE_STATUSES[col as Phase][0];
-        return { ...v, status: next };
-      })
-    );
+    const target = views.find((v) => v.id === coId);
+    if (!target || STATUS_PHASE[target.status] === col) return;
+    const next = col === "Dropped" ? "Dropped" : PHASE_STATUSES[col as Phase][0];
+    // optimistic UI, then persist to DB (trigger logs status_history)
+    setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: next } : v)));
+    startTransition(async () => {
+      const res = await updateStatus(coId, next);
+      if (!res.ok) {
+        // revert on failure
+        setViews((prev) => prev.map((v) => (v.id === coId ? { ...v, status: target.status } : v)));
+      }
+    });
   }
 
   const filtered = views.filter((v) => {
