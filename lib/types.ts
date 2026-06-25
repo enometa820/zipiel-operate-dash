@@ -116,6 +116,7 @@ export interface Collaboration {
   status: Status;
   manager: string;
   contentFeeKrw?: number;
+  feeSource?: string; // sheet_krw | unverified | undefined — KPI 신뢰 게이트
   cpv?: number;
   trackingNumber?: string;
   postUrl?: string;

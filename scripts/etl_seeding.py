@@ -82,6 +82,26 @@ def map_campaign(c):
     if "affiliate" in c or "어필리" in c: return "Affiliate"
     return "Gifted"
 
+# 매니저 표기 정규화: 시트의 대소문자·한글 약칭·합동표기를 canonical로.
+# 미상은 원문 보존(날조 금지). 근거 = scripts/diagnose_fees.py distinct 출력.
+MANAGER_CANON = {
+    "sol": "Sol", "anna": "Anna", "jane": "Jane", "nhi": "Nhi",
+    "natalie": "Natalie", "nat": "Natalie",
+    "tsss": "TSSS", "lyra": "Lyra", "effie": "effie", "unknown": "unknown",
+    "정채민": "정채민", "채민": "정채민", "조준상": "조준상", "준상": "조준상",
+    "김예지": "김예지", "예지": "김예지", "조아인": "조아인", "아인": "조아인",
+    "김정연": "김정연", "정연": "김정연", "나은": "나은", "카이토": "카이토", "차스": "차스",
+}
+def normalize_manager(s):
+    s = (s or "").strip()
+    if not s: return "unknown"
+    if "," in s:  # 합동 표기 → 각 파트 정규화 후 순서 보존 dedup
+        seen = []
+        for p in (normalize_manager(p) for p in s.split(",")):
+            if p and p != "unknown" and p not in seen: seen.append(p)
+        return ", ".join(seen) if seen else "unknown"
+    return MANAGER_CANON.get(s.lower(), s)
+
 def to_int(x):
     x = re.sub(r"[^\d]", "", (x or ""))
     if not x: return None
@@ -149,7 +169,8 @@ for pattern, default_country in SOURCES:
         email=find_col(hdr, "email", "이메일"),
         status=find_col(hdr, "진행 현황", "진행현황", "status"),
         campaign=find_col(hdr, "campaign", "캠페인"),
-        fee=find_col(hdr, "content cost", "content fee", "콘텐츠 비용", "rate"),
+        fee=find_col(hdr, "content cost", "content fee", "콘텐츠 비용"),
+        fee_rate=find_col(hdr, "rate", exclude=("engagement", "참여율")),
         cpv=find_col(hdr, "cpv"),
         avgviews=find_col(hdr, "average views", "avg views", "평균조회수", "평균 조회수"),
         listed=find_col(hdr, "listing date", "리스트업 날짜", "리스트업 일자", "리스트업\n일자", "리스트업"),
@@ -173,13 +194,24 @@ for pattern, default_country in SOURCES:
         h = handle_from(g("url"), g("name"))
         if not plat or country not in COUNTRY_OK or not h:
             continue
+        # fee 출처 분기: Content Cost (KRW) 우선 신뢰 → 없으면 Rate(엔게이지먼트 제외).
+        # SGP Rate = KRW 확정, TW/HK/US Rate = 통화 미확인(unverified), JP = fee 컬럼 부재(None).
+        if ci["fee"] >= 0 and g("fee"):
+            fee, fee_src = to_int(g("fee")), "sheet_krw"
+        elif ci["fee_rate"] >= 0 and g("fee_rate"):
+            fee = to_int(g("fee_rate"))
+            fee_src = "sheet_krw" if country == "SG" else "unverified"
+        else:
+            fee, fee_src = None, None
+        if fee is None:
+            fee_src = None
         records.append({
             "handle": h, "name": (g("name") or None), "platform": plat, "country": country,
             "followers": to_int(g("followers")) or 0, "tier": tier or "Nano",
-            "email": g("email") or None, "manager": (g("manager") or "unknown")[:40],
+            "email": g("email") or None, "manager": normalize_manager(g("manager"))[:40],
             "avg_views": to_int(g("avgviews")),
             "status": map_status(g("status")), "campaign_type": map_campaign(g("campaign")),
-            "fee": to_int(g("fee")), "cpv": to_num(g("cpv")),
+            "fee": fee, "fee_source": fee_src, "cpv": to_num(g("cpv")),
             "listed_date": to_date(g("listed")), "last_contact": to_date(g("last_contact")),
             "scheduled_post_date": to_date(g("scheduled")),
             "post_url": (g("post_url") if g("post_url").startswith("http") else None),
@@ -218,7 +250,7 @@ for r in records:
     col_payload.append({
         "creator_id": cid, "campaign_id": camp_id[r["campaign_type"]],
         "status": r["status"], "manager": r["manager"],
-        "content_fee_krw": r["fee"], "cpv": r["cpv"],
+        "content_fee_krw": r["fee"], "fee_source": r["fee_source"], "cpv": r["cpv"],
         "listed_date": r["listed_date"], "last_contact": r["last_contact"],
         "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
     })

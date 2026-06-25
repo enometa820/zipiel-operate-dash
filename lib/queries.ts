@@ -1,7 +1,7 @@
 import { createServerClient } from "./supabase";
 import * as mock from "./data";
 import type { CollaborationView } from "./data";
-import { STATUS_PHASE, type Campaign, type Creator, type Payment, type StatusEvent } from "./types";
+import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type StatusEvent } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -32,6 +32,7 @@ function mapCollab(r: any): CollaborationView {
     status: r.status,
     manager: r.manager,
     contentFeeKrw: r.content_fee_krw ?? undefined,
+    feeSource: r.fee_source ?? undefined,
     cpv: r.cpv != null ? Number(r.cpv) : undefined,
     trackingNumber: r.tracking_number ?? undefined,
     postUrl: r.post_url ?? undefined,
@@ -134,6 +135,111 @@ export async function fetchStats(): Promise<Stats> {
     byCampaign,
     withListedDate,
     withPostUrl,
+  };
+}
+
+// ---- Overview (보는 화면) — 정직 KPI. 가짜 약정액 금지, fee_source 게이트. ----
+
+const DONE_STATUSES = new Set(["Content Uploaded", "Completed"]);
+const STUCK_DAYS = 14;
+
+export interface OverviewStats {
+  total: number;
+  creators: number;
+  discoveryPool: number; // Sourcing — 발굴 풀(파이프라인 건강도에서 분리)
+  activePipeline: number; // 진행 중(Drop·Sourcing 제외)
+  dropped: number;
+  contentLive: number; // 콘텐츠 업로드/완료 — 실제 산출물
+  stuck: number; // active 중 14일+ 소통 없음(미기록 포함)
+  executedFeeKrw: number; // sheet_krw & Paid & 콘텐츠 라이브/완료 — 집행에 가장 근접
+  executedFeeCount: number;
+  pipelineValueKrw: number; // sheet_krw & active — 제안가(약정 아님)
+  paymentsRecorded: number; // payments 테이블 행수(현재 0)
+  funnel: { phase: Phase; count: number }[]; // 진행 퍼널(Sourcing 제외)
+  byCountryActive: Record<string, number>;
+  byManagerActive: Record<string, number>;
+  byCampaignActive: Record<string, number>;
+}
+
+function daysSince(iso?: string): number | null {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+
+export async function fetchOverviewStats(): Promise<OverviewStats> {
+  const views = await fetchCollaborationViews();
+  const creatorIds = new Set<string>();
+  let discoveryPool = 0,
+    dropped = 0,
+    activePipeline = 0,
+    contentLive = 0,
+    stuck = 0,
+    executedFeeKrw = 0,
+    executedFeeCount = 0,
+    pipelineValueKrw = 0;
+  const funnelCount: Record<string, number> = {};
+  const byCountryActive: Record<string, number> = {};
+  const byManagerActive: Record<string, number> = {};
+  const byCampaignActive: Record<string, number> = {};
+
+  for (const v of views) {
+    creatorIds.add(v.creatorId);
+    const phase = STATUS_PHASE[v.status];
+    const fee = v.contentFeeKrw ?? 0;
+    const trusted = v.feeSource === "sheet_krw";
+
+    if (v.status === "Drop") {
+      dropped++;
+      continue;
+    }
+    if (phase === "Sourcing") {
+      discoveryPool++;
+      continue;
+    }
+    // 여기부터 = active pipeline (Drop·Sourcing 제외)
+    activePipeline++;
+    byCountryActive[v.creator.country] = (byCountryActive[v.creator.country] ?? 0) + 1;
+    byManagerActive[v.manager] = (byManagerActive[v.manager] ?? 0) + 1;
+    byCampaignActive[v.campaign.type] = (byCampaignActive[v.campaign.type] ?? 0) + 1;
+    funnelCount[phase] = (funnelCount[phase] ?? 0) + 1;
+
+    if (DONE_STATUSES.has(v.status)) contentLive++;
+    const d = daysSince(v.lastContact);
+    if (d === null || d >= STUCK_DAYS) stuck++;
+
+    if (trusted && fee > 0) {
+      pipelineValueKrw += fee;
+      if (v.campaign.type === "Paid" && DONE_STATUSES.has(v.status)) {
+        executedFeeKrw += fee;
+        executedFeeCount++;
+      }
+    }
+  }
+
+  // payments 테이블 실집행 기록(현재 0행 — 정직 표시용)
+  let paymentsRecorded = 0;
+  const sb = createServerClient();
+  if (sb) {
+    const { count } = await sb.from("payments").select("*", { count: "exact", head: true });
+    paymentsRecorded = count ?? 0;
+  }
+
+  return {
+    total: views.length,
+    creators: creatorIds.size,
+    discoveryPool,
+    activePipeline,
+    dropped,
+    contentLive,
+    stuck,
+    executedFeeKrw,
+    executedFeeCount,
+    pipelineValueKrw,
+    paymentsRecorded,
+    funnel: PHASES.filter((p) => p !== "Sourcing").map((p) => ({ phase: p, count: funnelCount[p] ?? 0 })),
+    byCountryActive,
+    byManagerActive,
+    byCampaignActive,
   };
 }
 
