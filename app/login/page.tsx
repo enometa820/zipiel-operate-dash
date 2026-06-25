@@ -1,4 +1,5 @@
 import { login } from "./actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function LoginPage({
   searchParams,
@@ -35,12 +36,7 @@ export default async function LoginPage({
           <p className="text-sm text-[var(--phase-dropped)] mb-2">Invalid credentials</p>
         )}
 
-        <button
-          type="submit"
-          className="w-full mt-4 px-3 py-2 rounded-lg bg-[var(--accent)] text-white font-medium hover:opacity-90"
-        >
-          Sign in
-        </button>
+        <SubmitButton />
       </form>
     </div>
   );
