@@ -217,12 +217,14 @@ export const COUNTRY_FLAG: Record<Country, string> = {
   US: "🇺🇸",
 };
 
+// effie 시트 Platform 컬럼 표기 정본(IG·TT·TR·YT·X 약칭 + xiaohongshu·douyin 풀네임).
+// "RED"는 시트에 없는 라벨이라 폐기 — 시트 실제 용어로 정렬(조사: Platform 컬럼 xiaohongshu 3,385건·RED 0건).
 export const PLATFORM_LABEL: Record<Platform, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
+  instagram: "IG",
+  tiktok: "TT",
   x: "X",
-  threads: "Threads",
-  xiaohongshu: "RED",
+  threads: "TR",
+  xiaohongshu: "Xiaohongshu",
   douyin: "Douyin",
-  youtube: "YouTube",
+  youtube: "YT",
 };
