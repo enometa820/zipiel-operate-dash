@@ -1,16 +1,21 @@
 meta: {repo: zipiel-operate-dash, updated: 2026-06-26 KST}
-status_line: Board 재구성 배포 완료(prod READY) + 플랫폼 라벨 시트정합(RED→Xiaohongshu) + 슬랙 채널 전수 조사·문서화. 다음 = P0 캠페인 KPI 보드(조사가 가리킨 최우선 갭 — 팀 운영축은 협업이 아니라 캠페인 단위).
+status_line: "effie 새 채널(C0BDVHVNBPS) 대시보드 스펙 드롭 심층 조사·검증·종합(research/02·03) + 데이터 토대 스프린트(etl-safe-incremental-logistics) spec·plan 작성 완료 → execute 게이트 대기. 크롤링은 백로그. 다음 = plan 승인 후 execute(라이브 DB additive·손실0)."
 facts:
-  commits: "bdee886(board재구성)·25680ea(platform라벨)·60af9cb(슬랙조사) 전부 push → Vercel 자동배포 READY"
-  research: "research/01-슬랙-니즈-병목-조사.md(결과) · 슬랙-조사-방법-재현.md(재현법) · _tools/slack-needs-research.workflow.js(4렌즈 워크플로우)"
-  key_insight: "팀 운영·보고 축 = 협업 1건이 아니라 캠페인(브랜드×국가×ded/int×번호). 캠페인 KPI보드·일일보고 자동화·마감 역산이 최우선 갭(research/01 §7-8)"
-  slack: "읽기 = ../zipiel-cs-demo/.claude/skills/zipiel-slack/slack.py, 대상 채널 C0APNDK4QKW. 토큰 vault, 발송은 --dry-run 게이트"
-  git: clean (user/ 만 미추적 — secret 가드 제외)
+  new_channel: "C0BDVHVNBPS = effie 신설 대시보드 전용 채널(멤버 effie·대표·이용진·함대준). 기존 작업채널 C0APNDK4QKW와 별개. 06-25~26 스펙 통째 재정의."
+  research: "research/02-슬랙-대시보드-스펙-갱신-조사.md(심층조사·15상태 정본 a~o·재무·분석·정합·레퍼런스) · research/03-빌드계획-v2.md(마이그 0006~0013·로드맵 P0~P2·화면IA·§8 레퍼런스 시트·§8.1 Kangaroo·§9 크롤링 백로그). 멀티에이전트 워크플로우로 5렌즈+검증 종합."
+  data_shift: "정본 이동 — 옛 컨택리스트(1oZrsp5..., 발굴풀 격하·이미 14k DB적재) → 새 온에어 시트(10ymVk..., 401 접근필요·상태·계약비용·CPV·성과·제품) + 배송 접수용(1GlDP..., 링크공개·EMS 371송장·물류비 ~253만원)."
+  spec_plan: ".enometa/etl-safe-incremental-logistics/ spec.md(9칸)·plan.md(AC 7묶음·leaf 20) 작성·셀프리뷰 통과. 토대만 스코프(사용자 결정): ETL 전량삭제→멱등 upsert·출처태깅·shipments/products COGS·상태라벨 정정. 작업자입력·대시보드는 다음 스프린트."
+  bp: "references/bp-anti-bot-scraping-rate-limits.md 신설(5축 67원칙·검증14·확인필요~10) + bp-pattern.md §3.39. 핵심=임계 몰라도 안걸리는 구조(버너계정·증분체크포인트·페이싱). zipiel-instgram baseline 갭=백오프 선형무지터·sec-ch-ua/Accept-Language 미전송."
+  references: "위마케팅 틱톡 대시보드(1S71xU.., Analytics IA 청사진)·GM1 인플루언서시트(13FP.., 티어/deal_type 우리enum과 다름)·Kangaroo guide.hypercape.com(대표지인 제작, 캠페인중심 4탭 IA=우리 P0-C 검증)."
+  slack: "읽기 = ../zipiel-cs-demo/.claude/skills/zipiel-slack/slack.py. 새 채널 C0BDVHVNBPS. 토큰 vault, 발송 --dry-run 게이트."
+  git: "본 세션 산출 commit 예정(research/02·03·spec·plan·session·decisions). BP·memory는 ~/.claude(별도 backup-claude)."
 next:
-  - {task: "P0-1 캠페인 KPI 보드: campaigns 1차시민화(target·deadline=시작+40일·pic·focus_product·deal_type·fulfillment_type) + 캠페인 헤더보드(Target·Confirmed·CR·Remaining·D-day·PIC), 14k 협업그리드는 드릴다운. ouroboros spec부터. 근거=research/01", done: false}
-  - {task: "P0-2/3 일일보고 자동화(전일 델타·CR·Additional Contacts Needed, collaboration_status_history append-only 활용) + 마감 역산·리스크 우선순위 뷰(하루 필요 섭외수·위험도)", done: false}
-  - {task: "이월: payments 입력(Executed fee 실값화) / 조사 요약 슬랙 effie·대표 공유(검수 게이트 후 send)", done: false}
+  - {task: "plan 승인 후 /enometa-execute etl-safe-incremental-logistics — 마이그 0006~0009(라벨·출처태깅·products·shipments) → types/style 동기화 → ETL 손실0 재설계(AC-3) → 배송·products 적재(AC-4·5) → reconcile(AC-6) → /status(AC-7). AC-6.2 전후 스냅샷으로 손실0 검증.", done: false}
+  - {task: "토대 후 다음 스프린트: P0-C 캠페인 1차시민화·KPI보드·역산(대표 최강 미충족) → operator-inline-entry(작업자 시트형 추가) → analytics-reporting-layer(일/주/월 시계열·달성률·인게이지먼트%, 위마케팅 2존 IA·Kangaroo 4탭 청사진).", done: false}
+  - {task: "effie 차단 해소 요청: 온에어 시트(10ymVk) 공유(enometa@theframeless.co/서비스계정) + 캠페인 마스터 확정(브랜드×국가×ded/int·목표·마감·PIC). 둘 다 P1-E·P0-C 블로커.", done: false}
+  - {task: "백로그: 크롤링(crawler-result-ingestion·crawl-request-trigger, source_system='crawler') + 공식API 하이브리드(발굴=크롤러, 보강=Business Discovery). zipiel-instgram 갭 패치(버너계정·풀지터백오프·헤더3개). research/03 §9.", done: false}
 cautions:
-  - "taskkill //IM node.exe 금지 — 포트 PID만(Get-NetTCPConnection -LocalPort → Stop-Process). 로컬 빌드본 3100 떠있을 수 있음"
-  - "PII 절대선: 슬랙 코퍼스(scratchpad/slack-corpus.txt)·user/image.png는 repo 커밋 금지. research/01엔 raw PII 미포함(요약만)"
-  - "라벨 정본 = lib/status-style.ts(상태 한영병기·시트색)·lib/types.ts PLATFORM_LABEL(IG·TT·TR·YT·X·Xiaohongshu·Douyin). \"use server\"(app/actions.ts)는 async 함수만 export(객체 export 시 500)"
+  - "PII 절대선: 배송 CSV(scratchpad ship-2081447250.csv)·슬랙 코퍼스·user/는 repo 커밋 금지. shipments 적재 시 수취인명·전화·주소 컬럼 미적재(송장·요금·국가·제품·중량만)."
+  - "라이브 DB(seeding-ops 14,110협업) 변경은 additive only(ADD COLUMN·CREATE TABLE·enum rename). blanket DELETE/TRUNCATE 재등장 즉시 중단. ETL 재실행 전후 행수·status_history 불변 검증."
+  - "상태머신 정합: 코드 'On Hold'는 KO '지급 대기'에 이미 매핑(0003 오개명) — 0006으로 EN을 'Payment Pending'으로 환원. effie 15상태(a~o)와 1:1 확정. Drop 자동규칙(1개월 무회신)은 미구현(P2)."
+  - "taskkill //IM node.exe 금지 — 포트 PID만. 워크플로우 합성 에이전트가 긴 출력에서 API 스톨한 사례 있음(메인루프 직접 작성 또는 journal 추출로 우회)."

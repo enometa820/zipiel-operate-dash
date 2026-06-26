@@ -1,5 +1,7 @@
 # 운영 시트 원본 스냅샷 — 크리에이터 PII(전화·주소·이메일) 포함 → 외부 유출 방지
 research/sheet-snapshot/*.csv
+# 작업용 PII 자산(effie 시트 스크린샷 user/image.png 등) → 커밋 금지
+user/
 
 # 환경·비밀
 .env
