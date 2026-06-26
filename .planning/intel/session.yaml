@@ -1,15 +1,16 @@
 meta: {repo: zipiel-operate-dash, updated: 2026-06-26 KST}
-status_line: 운영팀 피드백(데이터 안 맞음·UX 불편) 대응 완료 — 데이터 정합(fee 출처 격리·매니저 정규화·정직 KPI) + UX 전면개편(보는/하는 분리·시트형 그리드·지급입력·근거표기) + 속도 최적화. 다음 = 팀 공유·지급 입력으로 Executed fee 실값화.
+status_line: Board 전면 재구성 완료 — 칸반 제거 → 좌측 사이드바 + 상태그룹 시트 그리드 + detail 우측 패널, 가로스크롤 0, 상태 pill은 effie 시트 정본 색+한/영 병기. ouroboros 4단계 통과(블로커 0). 다음 = 운영팀 공유·피드백 + payments 입력.
 facts:
-  commit: 00a7b00(icn1 리전) 외 8커밋 — fee격리·UX분리·payments·제안가폐기·로딩·perf
-  git: clean (전부 push됨, origin/main)
-  prod: https://zipiel-operate-dash.vercel.app (로그인 theframeless!), icn1 리전, 실측 Overview~1.3s·board~0.5s
-  data: 협업 14,110 그대로, fee_source 격리(sheet_krw 149·unverified 70·null 13891), payments 0행
+  redesign: ".enometa/sheet-grid-redesign/ (spec·plan·execute·verify). 신규7·수정9·삭제4파일, @dnd-kit 제거"
+  git: dirty → 본 sse에서 commit·push(user/ 제외 secret가드)
+  prod: "push 시 Vercel 자동배포 → 새 board가 zipiel-operate-dash.vercel.app 라이브(로그인 theframeless!)"
+  data: 협업 14k 그대로·데이터 계약(쿼리·세금·ETL) 불변, 표현 레이어만 재구성. payments 0행 유지
+  verified: "로컬 빌드본 1024/1280/1440 가로스크롤 0·패널 a11y·500해소 실측(playwright)"
 next:
-  - {task: "실제 지급(payments) 입력 시작 → Executed fee 실집행값화. Deal페이지 Record payment(금액·거주지세금·상태)", done: false}
-  - {task: "운영팀(effie·매니저) 공유 후 피드백. 공유 메시지 초안 작성됨(슬랙 #이용진-mkt오퍼레이션-대시보드 게시 대기, '올려줘' 시 게시)", done: false}
-  - {task: "선택: Overview를 DB측 집계(RPC)로 — 14k 조회 자체 제거. 모바일 카피·시각화 추가 피드백 반영", done: false}
+  - {task: "운영팀(effie·매니저) 새 board 공유·피드백. push로 prod 자동배포되니 바로 확인 가능", done: false}
+  - {task: "실제 지급(payments) 입력 → Executed fee 실값화(직전 세션 이월). Deal/패널 Record payment", done: false}
+  - {task: "후속 보류 3건: 스크롤 중 그룹헤더 sticky 오버레이 · 컬럼 drag-resize · unverified fee 정정 시 fee_source provenance(KPI 정직성)", done: false}
 cautions:
-  - "taskkill //IM node.exe 금지 — MCP 서버(playwright 등)·세션까지 죽임(이번에 playwright 끊김). 포트 PID만 kill: netstat | grep :PORT → taskkill //PID"
-  - Executed fee가 ₩200/시트추정인 건 버그 아님 — payments 0행이라 그럼. 지급 입력하면 실값 전환(검증 완료)
-  - 작업면 기본 active만 로드(sourcing 제외) — ?all=1로 발굴 풀 전체, manager/country 필터 옵션도 기본은 active 기준. 재적재=python scripts/etl_seeding.py
+  - "taskkill //IM node.exe 금지 — MCP·세션까지 죽임. 포트 PID만: Get-NetTCPConnection -LocalPort PORT → Stop-Process. 로컬 빌드본 3100 실행 중일 수 있음"
+  - "\"use server\" 파일(app/actions.ts)은 async 함수만 export — 객체 export 시 런타임 500(WITHHOLDING_RATE 사건). 이번에 internal화로 해소"
+  - "상태 색·라벨 정본 = lib/status-style.ts(effie 시트 user/image.png 기반 한영병기). 일반 페이즈 파스텔로 덮지 말 것"

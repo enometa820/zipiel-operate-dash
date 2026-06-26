@@ -184,12 +184,6 @@ export const PHASE_STATUSES: Record<Phase, Status[]> = {
   Done: ["Completed"],
 };
 
-// status assigned when a card is dropped onto an off-pipeline lane
-export const COLUMN_DEFAULT_STATUS: Record<"Seeding" | "Dropped", Status> = {
-  Seeding: "Simple Seeding/PR",
-  Dropped: "Drop",
-};
-
 export const PHASE_META: Record<
   BoardColumn,
   { label: string; accent: string; dot: string }

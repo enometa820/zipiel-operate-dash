@@ -10,17 +10,20 @@ export function SelectCell({
   options,
   onCommit,
   accent,
+  ariaLabel,
 }: {
   value: string;
   options: { value: string; label: string; title?: string }[];
   onCommit: (v: string) => void;
   accent?: string;
+  ariaLabel?: string;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onCommit(e.target.value)}
       onClick={(e) => e.stopPropagation()}
+      aria-label={ariaLabel}
       className="w-full bg-transparent text-xs font-medium rounded px-1 py-0.5 outline-none cursor-pointer hover:bg-[var(--panel-2)] truncate"
       style={accent ? { color: accent } : undefined}
     >
@@ -38,11 +41,13 @@ export function TextCell({
   onCommit,
   placeholder,
   type = "text",
+  ariaLabel,
 }: {
   value: string;
   onCommit: (v: string) => void;
   placeholder?: string;
   type?: "text" | "number" | "date";
+  ariaLabel?: string;
 }) {
   const [v, setV] = useState(value);
   // 외부 값(낙관 갱신/재fetch) 변경 시 렌더 중 동기화 — effect 없이(React 권장 패턴)
@@ -57,6 +62,7 @@ export function TextCell({
       type={type}
       value={v}
       placeholder={placeholder}
+      aria-label={ariaLabel}
       onChange={(e) => setV(e.target.value)}
       onClick={(e) => e.stopPropagation()}
       onBlur={() => {

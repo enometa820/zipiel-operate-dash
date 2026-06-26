@@ -2,7 +2,17 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
-import type { Status, TaxType } from "@/lib/types";
+import { fetchPayment, fetchStatusEvents } from "@/lib/queries";
+import type { Payment, Status, StatusEvent, TaxType } from "@/lib/types";
+
+// detail 패널 lazy-load — 기존 쿼리 래핑(데이터 계약 불변).
+export async function getStatusHistory(collaborationId: string): Promise<StatusEvent[]> {
+  return fetchStatusEvents(collaborationId);
+}
+
+export async function getPaymentFor(collaborationId: string): Promise<Payment | null> {
+  return (await fetchPayment(collaborationId)) ?? null;
+}
 
 // Update a collaboration's status. The DB trigger (log_status_change)
 // appends a row to collaboration_status_history automatically.
@@ -57,7 +67,8 @@ export async function updateCollaboration(id: string, patch: CollaborationPatch)
 
 // 실제 지급 기록 — Executed fee를 시트 추정에서 실집행값으로 전환.
 // 세금: 거주지별 원천징수율 분기(외국인 일괄 3.3% 금지). 기본율은 추정 — 세무사 확인.
-export const WITHHOLDING_RATE: Record<TaxType, number> = {
+// 내부 전용 — "use server" 파일은 async 함수만 export 가능(객체 export 금지).
+const WITHHOLDING_RATE: Record<TaxType, number> = {
   "kr_resident_3.3": 3.3,
   nonresident_domestic: 22,
   nonresident_overseas: 0,
