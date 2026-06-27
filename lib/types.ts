@@ -171,6 +171,7 @@ export interface Payment {
   taxKrw: number;
   netKrw: number;
   status: "pending" | "paid";
+  paidAt?: string; // YYYY-MM-DD (status=paid일 때)
 }
 
 // ---- Status → board column (effie's 15 stages folded to columns) ----

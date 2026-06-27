@@ -6,9 +6,10 @@
 #
 # Usage: python scripts/etl_shipments.py [path/to/ship.csv]
 #   default path = the known scratchpad export. Override with argv[1].
-import csv, json, re, sys, io, os, urllib.request, urllib.error
+import csv, json, re, sys, io, os, socket, urllib.request, urllib.error
 from collections import OrderedDict, Counter
 
+socket.setdefaulttimeout(30)  # 네트워크 블립 시 무한 행 방지
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = "C:/Projects/zipiel-operate-dash"
 DEFAULT_CSV = ("C:/Users/sickkiya/AppData/Local/Temp/claude/"
@@ -37,7 +38,10 @@ def api(method, path, body=None, prefer=None):
 
 def to_int(x):
     x = re.sub(r"[^\d]", "", (x or ""))
-    return int(x) if x else None
+    if not x:
+        return None
+    n = int(x)
+    return n if n < 100_000_000 else None  # 병합셀·오염 이상치 거름(etl_seeding 일치)
 
 def to_date(x):
     m = re.search(r"(20\d{2})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})", (x or ""))

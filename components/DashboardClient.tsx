@@ -31,6 +31,7 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
   const [, startTransition] = useTransition();
   const [filters, setFilters] = useState<GridFilters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editError, setEditError] = useState("");
 
   const [prefsRaw, setPrefsRaw] = useLocalStorage<GridPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const prefs = useMemo(() => mergePrefs(prefsRaw), [prefsRaw]);
@@ -54,6 +55,7 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
       if (!res.ok && prev) {
         const p = prev;
         setViews((cur) => cur.map((v) => (v.id === id ? p : v)));
+        setEditError(`Edit reverted — ${res.reason ?? "save failed"}`);
       }
     });
   }, []);
@@ -118,6 +120,15 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
           <WorkGrid views={filtered} onEdit={onEdit} managers={managers} prefs={prefs} onToggleGroup={onToggleGroup} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </main>
+
+      {editError && (
+        <button
+          onClick={() => setEditError("")}
+          className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-lg border border-[var(--phase-dropped)] bg-[var(--panel)] px-4 py-2 text-xs text-[var(--phase-dropped)] shadow-lg"
+        >
+          {editError} · dismiss
+        </button>
+      )}
 
       <DetailPanel co={selected} onClose={() => setSelectedId(null)} onEdit={onEdit} />
     </div>

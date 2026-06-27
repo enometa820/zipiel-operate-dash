@@ -1,9 +1,10 @@
 # ETL: ALL list tabs (On-Air + country [List] tabs) -> normalized tables.
 # SAFE SYNC (additive·idempotent·no wipe — see "SAFE SYNC" block below).
 # Reads .env.local. Real creators from gitignored snapshot (PII).
-import csv, json, re, glob, sys, io, urllib.request, urllib.error
+import csv, json, re, glob, sys, io, socket, urllib.request, urllib.error
 from collections import Counter
 
+socket.setdefaulttimeout(30)  # 네트워크 블립 시 무한 행 방지(운영자 스크립트)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = "C:/Projects/zipiel-operate-dash"
 SNAP = f"{ROOT}/research/sheet-snapshot"

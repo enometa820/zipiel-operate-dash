@@ -23,16 +23,20 @@ export function PaymentEditor({
   collaborationId,
   payment,
   suggestedGross,
+  campaignType,
+  collabStatus,
 }: {
   collaborationId: string;
   payment?: Payment;
   suggestedGross?: number;
+  campaignType?: string;
+  collabStatus?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [gross, setGross] = useState<string>(payment ? String(payment.grossKrw) : suggestedGross ? String(suggestedGross) : "");
   const [taxType, setTaxType] = useState<TaxType>(payment?.taxType ?? "nonresident_overseas");
   const [status, setStatus] = useState<"pending" | "paid">(payment?.status ?? "pending");
-  const [paidAt, setPaidAt] = useState("");
+  const [paidAt, setPaidAt] = useState(payment?.paidAt ?? "");
   const [pending, start] = useTransition();
   const [err, setErr] = useState("");
 
@@ -68,11 +72,17 @@ export function PaymentEditor({
     );
   }
 
-  // 보기 모드 — 지급 없음
+  // 보기 모드 — 지급 없음 (상태·유형 인지 안내)
   if (!editing && !payment) {
+    const emptyMsg =
+      campaignType === "Gifted"
+        ? "Gifted collaboration — no payment expected."
+        : collabStatus && ["Completed", "Content Uploaded", "Payment Pending"].includes(collabStatus)
+          ? "No payout recorded yet — ready to record."
+          : "No payout recorded yet (not yet at payment stage).";
     return (
       <>
-        <p className="text-sm text-[var(--muted)]">No payout recorded yet (gifted / not yet at payment stage).</p>
+        <p className="text-sm text-[var(--muted)]">{emptyMsg}</p>
         <button onClick={() => setEditing(true)} className="mt-3 text-xs px-2.5 py-1.5 rounded-md border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent-soft)]">
           + Record payment
         </button>
@@ -86,6 +96,9 @@ export function PaymentEditor({
       <Field label="Gross (KRW)">
         <input
           type="number"
+          min="0"
+          step="1"
+          aria-label="Gross amount in KRW"
           value={gross}
           onChange={(e) => setGross(e.target.value)}
           placeholder="0"
@@ -93,7 +106,7 @@ export function PaymentEditor({
         />
       </Field>
       <Field label="Tax type">
-        <select value={taxType} onChange={(e) => setTaxType(e.target.value as TaxType)} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]">
+        <select aria-label="Tax type" value={taxType} onChange={(e) => setTaxType(e.target.value as TaxType)} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]">
           {TAX_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
@@ -104,14 +117,14 @@ export function PaymentEditor({
         <div className="flex justify-between font-semibold"><span>Net payout</span><span className="tabular-nums">{formatKrw(net)}</span></div>
       </div>
       <Field label="Status">
-        <select value={status} onChange={(e) => setStatus(e.target.value as "pending" | "paid")} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]">
+        <select aria-label="Payment status" value={status} onChange={(e) => setStatus(e.target.value as "pending" | "paid")} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]">
           <option value="pending">pending</option>
           <option value="paid">paid</option>
         </select>
       </Field>
       {status === "paid" && (
         <Field label="Paid date">
-          <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]" />
+          <input type="date" aria-label="Paid date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className="w-full px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--panel)] outline-none focus:border-[var(--accent)]" />
         </Field>
       )}
       {err && <p className="text-xs text-[var(--phase-dropped)]">{err}</p>}

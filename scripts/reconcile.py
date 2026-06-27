@@ -3,9 +3,10 @@
 #   python scripts/reconcile.py snapshot   # record pre-apply counts (AC-6.2 baseline)
 #   python scripts/reconcile.py            # run all checks (+ diff vs snapshot if present)
 #   python scripts/reconcile.py [ship.csv] # override shipping CSV path for the source compare
-import json, re, sys, io, os, csv, tempfile, urllib.request, urllib.error
+import json, re, sys, io, os, csv, socket, tempfile, urllib.request, urllib.error
 from collections import OrderedDict
 
+socket.setdefaulttimeout(30)  # 네트워크 블립 시 무한 행 방지
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = "C:/Projects/zipiel-operate-dash"
 DEFAULT_CSV = ("C:/Users/sickkiya/AppData/Local/Temp/claude/"

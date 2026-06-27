@@ -8,6 +8,7 @@ import { statusLabel } from "@/lib/status-style";
 export function StatusEditor({ id, status }: { id: string; status: Status }) {
   const [cur, setCur] = useState<Status>(status);
   const [pending, start] = useTransition();
+  const [err, setErr] = useState("");
   const accent = PHASE_META[STATUS_PHASE[cur]].accent;
 
   return (
@@ -19,9 +20,13 @@ export function StatusEditor({ id, status }: { id: string; status: Status }) {
           const s = e.target.value as Status;
           const prev = cur;
           setCur(s);
+          setErr("");
           start(async () => {
             const res = await updateStatus(id, s);
-            if (!res.ok) setCur(prev);
+            if (!res.ok) {
+              setCur(prev);
+              setErr(res.reason ?? "Update failed — reverted");
+            }
           });
         }}
         className="text-sm font-semibold rounded-lg px-3 py-1.5 bg-transparent outline-none cursor-pointer disabled:opacity-50"
@@ -35,6 +40,7 @@ export function StatusEditor({ id, status }: { id: string; status: Status }) {
         ))}
       </select>
       {pending && <span className="text-xs text-[var(--muted)]">saving…</span>}
+      {err && <span className="text-xs text-[var(--phase-dropped)]">{err}</span>}
     </div>
   );
 }

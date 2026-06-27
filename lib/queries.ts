@@ -15,7 +15,7 @@ function mapCreator(r: any): Creator {
     country: r.country,
     followers: r.followers,
     tier: r.tier,
-    email: r.email ?? undefined,
+    // email(PII)은 의도적으로 매핑 안 함 — SELECT에서 제외. Creator.email?은 향후용으로 유지.
     manager: r.manager,
     avgViews: r.avg_views ?? undefined,
     sourceSystem: r.source_system ?? undefined,
@@ -50,7 +50,9 @@ function mapCollab(r: any): CollaborationView {
   };
 }
 
-const SELECT = "*, creator:creators(*), campaign:campaigns(*)";
+// creator는 렌더에 쓰는 컬럼만 — email(PII)은 어디서도 표시 안 하므로 전송하지 않음.
+const SELECT =
+  "*, creator:creators(id,handle,name,platform,country,followers,tier,manager,avg_views,source_system,in_legacy_list), campaign:campaigns(*)";
 const PAGE = 1000; // Supabase caps rows at 1000/request — paginate.
 
 // 병렬 페이지네이션 — 1000행씩 15회 순차 왕복 대신, count로 페이지 수 파악 후 동시 요청.
@@ -325,7 +327,9 @@ export interface OverviewStats {
 
 function daysSince(iso?: string): number | null {
   if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return null; // 잘못된 날짜(예: 2026-04-31)는 NaN → null(미상=stuck로 집계)
+  return Math.floor((Date.now() - t) / 86_400_000);
 }
 
 export async function fetchOverviewStats(): Promise<OverviewStats> {
@@ -462,5 +466,6 @@ export async function fetchPayment(collaborationId: string): Promise<Payment | u
     taxKrw: data.tax_krw,
     netKrw: data.net_krw,
     status: data.status,
+    paidAt: data.paid_at ? String(data.paid_at).slice(0, 10) : undefined,
   };
 }

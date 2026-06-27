@@ -76,7 +76,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         {/* Payment + tax — 실제 지급 기록(Executed fee 실값화) */}
         <div className="card p-5">
           <h2 className="text-sm font-semibold mb-3">Payment</h2>
-          <PaymentEditor collaborationId={co.id} payment={payment} suggestedGross={co.contentFeeKrw} />
+          <PaymentEditor collaborationId={co.id} payment={payment} suggestedGross={co.contentFeeKrw} campaignType={co.campaign.type} collabStatus={co.status} />
         </div>
       </div>
 

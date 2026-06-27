@@ -175,7 +175,7 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
           {payment === undefined ? (
             <p className="text-xs text-[var(--faint)]">Loading…</p>
           ) : (
-            <PaymentEditor collaborationId={co.id} payment={payment ?? undefined} suggestedGross={co.contentFeeKrw} />
+            <PaymentEditor collaborationId={co.id} payment={payment ?? undefined} suggestedGross={co.contentFeeKrw} campaignType={co.campaign.type} collabStatus={co.status} />
           )}
         </Section>
 
