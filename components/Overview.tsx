@@ -50,7 +50,7 @@ export function Overview({ stats }: { stats: OverviewStats }) {
             <div className="text-xs text-[var(--muted)] mt-1">
               {stats.executedFromPayments
                 ? `Actual disbursement · ${stats.executedFeeCount} payment${stats.executedFeeCount === 1 ? "" : "s"} marked paid`
-                : `Sheet estimate · Paid at content stage · ${stats.executedFeeCount} deal${stats.executedFeeCount === 1 ? "" : "s"}`}
+                : `Sheet estimate · completed & posted, not yet bank-confirmed · ${stats.executedFeeCount} deal${stats.executedFeeCount === 1 ? "" : "s"}`}
             </div>
           </div>
           <div className="text-right">
@@ -143,12 +143,12 @@ export function Overview({ stats }: { stats: OverviewStats }) {
             v={
               stats.executedFromPayments
                 ? `${stats.executedFeeCount} payment(s) = ${formatKrw(stats.executedFeeKrw)} — actual disbursement (payments table · status=paid · gross)`
-                : `${stats.executedFeeCount} deal(s) = ${formatKrw(stats.executedFeeKrw)} — sheet estimate (Paid · content uploaded/completed · trusted KRW). Record payments to switch to actual disbursement.`
+                : `${stats.executedFeeCount} deal(s) = ${formatKrw(stats.executedFeeKrw)} — sheet estimate (Paid · Completed · has post URL · trusted KRW). Record payments to switch to actual disbursement.`
             }
           />
           <BasisRow
             k="Fee ledger (all rows)"
-            v={`trusted KRW ${stats.feeLedger.sheetKrw.count} = ${formatKrw(stats.feeLedger.sheetKrw.sum)} (KR/CN/On-Air/SGP) · unverified ${stats.feeLedger.unverified.count} = ${formatKrw(stats.feeLedger.unverified.sum)} (TW/HK/US — excluded) · no fee ${f(stats.feeLedger.noFee)} (incl. JP — engagement-rate column is not a fee)`}
+            v={`trusted KRW ${stats.feeLedger.sheetKrw.count} = ${formatKrw(stats.feeLedger.sheetKrw.sum)} (KR/CN/On-Air/SGP) · unverified ${stats.feeLedger.unverified.count} = ${formatKrw(stats.feeLedger.unverified.sum)} (TW/HK/US — excluded) · unknown source ${stats.feeLedger.unknownSource.count} = ${formatKrw(stats.feeLedger.unknownSource.sum)} (should be ₩0 — flags money with no fee_source) · no fee ${f(stats.feeLedger.noFee)} (incl. JP — engagement-rate column is not a fee)`}
           />
           <BasisRow k="Payments table" v={`${stats.paymentsRecorded} payment row(s) recorded. Record on a deal to drive Executed fee.`} />
           <BasisRow k="Source" v="Live Supabase, re-derived on every load. Cross-check with scripts/diagnose_fees.py." />

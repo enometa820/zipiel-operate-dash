@@ -18,6 +18,8 @@ function mapCreator(r: any): Creator {
     email: r.email ?? undefined,
     manager: r.manager,
     avgViews: r.avg_views ?? undefined,
+    sourceSystem: r.source_system ?? undefined,
+    inLegacyList: r.in_legacy_list ?? undefined,
   };
 }
 
@@ -41,6 +43,8 @@ function mapCollab(r: any): CollaborationView {
     listedDate: r.listed_date ?? undefined,
     scheduledPostDate: r.scheduled_post_date ?? undefined,
     notes: r.notes ?? undefined,
+    sourceSystem: r.source_system ?? undefined,
+    externalRef: r.external_ref ?? undefined,
     creator: mapCreator(r.creator),
     campaign: mapCampaign(r.campaign),
   };
@@ -242,27 +246,33 @@ async function rawLogisticsStats(): Promise<LogisticsStats> {
   };
   if (!sb) return empty;
 
-  const { count: shipments } = await sb.from("shipments").select("*", { count: "exact", head: true });
-  const { data: fees } = await sb.from("shipments").select("fee_krw, brand_tag");
+  // 독립 쿼리 6개 — 직렬 왕복 대신 Promise.all 병렬(왕복 시간 ~1/3).
+  const [shipRes, feesRes, prodsRes, totalRes, legacyRes, untaggedRes] = await Promise.all([
+    sb.from("shipments").select("*", { count: "exact", head: true }),
+    sb.from("shipments").select("fee_krw, brand_tag"),
+    sb.from("products").select("name, cogs_krw").order("name"),
+    sb.from("collaborations").select("*", { count: "exact", head: true }),
+    sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", "legacy_contact_list"),
+    sb.from("collaborations").select("*", { count: "exact", head: true }).is("source_system", null),
+  ]);
+
+  const shipments = shipRes.count ?? 0;
   let feeKrwTotal = 0;
   let feeKrwExclHH = 0;
-  for (const f of (fees ?? []) as { fee_krw: number | null; brand_tag: string | null }[]) {
+  for (const f of (feesRes.data ?? []) as { fee_krw: number | null; brand_tag: string | null }[]) {
     const v = Number(f.fee_krw) || 0;
     feeKrwTotal += v;
     if (f.brand_tag !== "H&H") feeKrwExclHH += v;
   }
-  const { data: prods } = await sb.from("products").select("name, cogs_krw").order("name");
-  const products = ((prods ?? []) as { name: string; cogs_krw: number | null }[]).map((p) => ({
+  const products = ((prodsRes.data ?? []) as { name: string; cogs_krw: number | null }[]).map((p) => ({
     name: p.name,
     cogsKrw: p.cogs_krw != null ? Number(p.cogs_krw) : null,
   }));
 
   // source_system 분포 — 소스가 소수라 known 값별 count(head)로 가볍게.
-  const total = (await sb.from("collaborations").select("*", { count: "exact", head: true })).count ?? 0;
-  const legacy =
-    (await sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", "legacy_contact_list")).count ?? 0;
-  const untagged =
-    (await sb.from("collaborations").select("*", { count: "exact", head: true }).is("source_system", null)).count ?? 0;
+  const total = totalRes.count ?? 0;
+  const legacy = legacyRes.count ?? 0;
+  const untagged = untaggedRes.count ?? 0;
   const sourceDistribution: Record<string, number> = { legacy_contact_list: legacy };
   const other = total - legacy - untagged;
   if (other > 0) sourceDistribution["기타"] = other;
@@ -278,7 +288,12 @@ export const fetchLogisticsStats = unstable_cache(rawLogisticsStats, ["logistics
 
 // ---- Overview (보는 화면) — 정직 KPI. 가짜 약정액 금지, fee_source 게이트. ----
 
-const DONE_STATUSES = new Set(["Content Uploaded", "Completed"]);
+// contentLive(콘텐츠 산출물 카운트)는 업로드도 산출물이므로 Uploaded 포함이 맞다.
+// 그러나 Executed fee(시트 추정 실집행)는 더 보수적으로 — 게시 링크가 있는 Completed만.
+// Payment Pending은 '계획된 지급'이라 의도적 제외(실집행 ≠ 지급 예정). 실제 현금
+// 집행 cash-out은 payments 테이블(status=paid)이 정본이고, 있으면 그쪽을 우선한다.
+const DONE_STATUSES = new Set(["Content Uploaded", "Completed"]); // 콘텐츠 산출물(라이브) 카운트용
+const EXECUTED_STATUSES = new Set(["Completed"]); // 시트 추정 실집행 게이트(+ 게시링크 보유)
 const STUCK_DAYS = 14;
 
 export interface OverviewStats {
@@ -299,7 +314,8 @@ export interface OverviewStats {
   feeLedger: {
     sheetKrw: { count: number; sum: number }; // KRW 확정 — 합산 포함
     unverified: { count: number; sum: number }; // 통화 미확인 — 합산 제외
-    noFee: number; // fee 없음(JP 참여율 차단분 포함)
+    unknownSource: { count: number; sum: number }; // fee>0인데 출처 미상 — 감사 구멍(정상이면 0)
+    noFee: number; // fee 없음(fee<=0, JP 참여율 차단분 포함)
   };
   funnel: { phase: Phase; count: number }[]; // 진행 퍼널(Sourcing 제외)
   byCountryActive: Record<string, number>;
@@ -327,6 +343,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const feeLedger = {
     sheetKrw: { count: 0, sum: 0 },
     unverified: { count: 0, sum: 0 },
+    unknownSource: { count: 0, sum: 0 },
     noFee: 0,
   };
   const funnelCount: Record<string, number> = {};
@@ -347,6 +364,10 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     } else if (fee > 0 && f.feeSource === "unverified") {
       feeLedger.unverified.count++;
       feeLedger.unverified.sum += fee;
+    } else if (fee > 0) {
+      // 금액은 있으나 출처가 sheet_krw/unverified가 아님 — 조용히 사라지던 감사 구멍을 포착
+      feeLedger.unknownSource.count++;
+      feeLedger.unknownSource.sum += fee;
     } else {
       feeLedger.noFee++;
     }
@@ -373,7 +394,9 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     if (trusted && fee > 0) {
       pipelineValueKrw += fee;
       pipelineValueCount++;
-      if (f.campaignType === "Paid" && DONE_STATUSES.has(f.status)) {
+      // 실집행 추정 = 유가 + Completed + 게시링크 보유. 업로드만 된(미완·미게시) 건은
+      // 실집행으로 과대계상하지 않는다. payments 실값이 있으면 아래에서 그쪽으로 대체.
+      if (f.campaignType === "Paid" && EXECUTED_STATUSES.has(f.status) && f.hasPostUrl) {
         executedFeeKrw += fee;
         executedFeeCount++;
       }
@@ -386,7 +409,8 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     paidCount = 0;
   const sb = createServerClient();
   if (sb) {
-    const { data: pays } = await sb.from("payments").select("gross_krw, status");
+    // 합산이 목적 — 두 컬럼만. 안전 상한(테이블 성장 시 무제한 로드 방지); 초과 규모면 집계 RPC로 전환.
+    const { data: pays } = await sb.from("payments").select("gross_krw, status").limit(5000);
     if (pays) {
       paymentsRecorded = pays.length;
       for (const p of pays as { gross_krw: number; status: string }[]) {

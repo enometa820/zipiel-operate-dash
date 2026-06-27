@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { updateStatus } from "@/app/actions";
-import { PHASE_META, STATUS_PHASE, STATUS_KO, STATUSES, type Status } from "@/lib/types";
+import { PHASE_META, STATUS_PHASE, STATUSES, type Status } from "@/lib/types";
+import { statusLabel } from "@/lib/status-style";
 
 export function StatusEditor({ id, status }: { id: string; status: Status }) {
   const [cur, setCur] = useState<Status>(status);
@@ -25,11 +26,11 @@ export function StatusEditor({ id, status }: { id: string; status: Status }) {
         }}
         className="text-sm font-semibold rounded-lg px-3 py-1.5 bg-transparent outline-none cursor-pointer disabled:opacity-50"
         style={{ color: accent, border: `1px solid ${accent}` }}
-        title={STATUS_KO[cur]}
+        title={statusLabel(cur)}
       >
         {STATUSES.map((s) => (
           <option key={s} value={s} className="text-[var(--text)]">
-            {s} · {STATUS_KO[s]}
+            {statusLabel(s)}
           </option>
         ))}
       </select>

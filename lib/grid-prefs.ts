@@ -1,6 +1,4 @@
 // 그리드 환경설정 — 밀도·그룹핑·컬럼 가시성/순서/접힘. localStorage 영속.
-import type { Status } from "./types";
-
 export type Density = "condensed" | "regular" | "relaxed";
 export type GroupBy = "phase" | "status" | "none";
 
@@ -27,11 +25,11 @@ export const GRID_COLUMNS: { id: string; label: string; defaultVisible: boolean 
   { id: "cpv", label: "CPV", defaultVisible: false },
 ];
 
-export const DEFAULT_COLUMN_ORDER = GRID_COLUMNS.map((c) => c.id);
+const DEFAULT_COLUMN_ORDER = GRID_COLUMNS.map((c) => c.id);
 // creator는 항상 첫 컬럼(frozen 안전장치) — 순서 변경/숨김 불가.
 export const LOCKED_COLUMN = "creator";
 
-export function defaultVisibility(): Record<string, boolean> {
+function defaultVisibility(): Record<string, boolean> {
   const v: Record<string, boolean> = {};
   for (const c of GRID_COLUMNS) v[c.id] = c.defaultVisible;
   return v;
@@ -72,11 +70,4 @@ export function mergePrefs(saved: Partial<GridPrefs> | null): GridPrefs {
     columnOrder: order,
     collapsedGroups: saved.collapsedGroups ?? [],
   };
-}
-
-// status → 그룹 key (groupBy 모드별)
-export function groupKeyOf(status: Status, groupBy: GroupBy, phaseOf: (s: Status) => string): string {
-  if (groupBy === "status") return status;
-  if (groupBy === "phase") return phaseOf(status);
-  return "all";
 }

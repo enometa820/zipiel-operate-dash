@@ -1,31 +1,12 @@
 import {
   COUNTRY_FLAG,
-  PHASE_META,
   PLATFORM_LABEL,
-  STATUS_KO,
-  STATUS_PHASE,
   TIER_META,
   type CampaignType,
   type Country,
   type Platform,
-  type Status,
   type Tier,
 } from "@/lib/types";
-
-export function StatusBadge({ status }: { status: Status }) {
-  const phase = STATUS_PHASE[status];
-  const meta = PHASE_META[phase];
-  return (
-    <span
-      className="chip"
-      title={STATUS_KO[status]}
-      style={{ color: meta.accent, borderColor: meta.accent, background: "transparent" }}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-      {status}
-    </span>
-  );
-}
 
 export function TierBadge({ tier }: { tier: Tier }) {
   return (

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ArrowUpRight, X } from "lucide-react";
 import type { CollaborationView } from "@/lib/data";
 import { getPaymentFor, getStatusHistory, type CollaborationPatch } from "@/app/actions";
-import { STATUS_KO, type Payment, type StatusEvent } from "@/lib/types";
+import { type Payment, type StatusEvent } from "@/lib/types";
+import { statusLabel } from "@/lib/status-style";
 import { formatCompact, formatDate } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusSelectCell } from "@/components/grid/StatusPill";
@@ -205,7 +206,7 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
         <Link href={`/collaborations/${co.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] hover:underline">
           Open full page <ArrowUpRight size={15} />
         </Link>
-        <span className="text-[11px] text-[var(--faint)]">{STATUS_KO[co.status]}</span>
+        <span className="text-[11px] text-[var(--faint)]">{statusLabel(co.status)}</span>
       </div>
     </>
   );

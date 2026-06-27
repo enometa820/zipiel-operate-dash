@@ -171,7 +171,7 @@ function Bars({ title, data, total }: { title: string; data: { label: string; ko
 }
 
 const FEATURES = [
-  { done: true, t: "6단계 파이프라인 칸반", d: "리스트업→협상→발송→콘텐츠→지급→완료, 카드를 끌어 단계 이동" },
+  { done: true, t: "6단계 파이프라인", d: "리스트업→협상→발송→콘텐츠→지급→완료 — 상태 그룹 시트 그리드로 단계별 추적(칸반은 운영팀 피드백으로 제거, 가로 스크롤 없는 시트형으로 전환)" },
   { done: true, t: "상태 직접 변경", d: "카드·상세에서 effie 정본 15단계 드롭다운으로 바로 변경, 이력 자동 기록" },
   { done: true, t: "표 보기", d: "정렬·검색·담당자/유형 필터·페이지 넘김" },
   { done: true, t: "크리에이터 상세(Deal) 페이지", d: "협업 조건·CPV·지급·상태 이력을 한 화면에" },

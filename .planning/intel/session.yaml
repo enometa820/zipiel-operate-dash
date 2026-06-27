@@ -1,5 +1,5 @@
 meta: {repo: zipiel-operate-dash, updated: 2026-06-26 KST}
-status_line: "effie 새 채널(C0BDVHVNBPS) 대시보드 스펙 드롭 심층 조사·검증·종합(research/02·03) + 데이터 토대 스프린트(etl-safe-incremental-logistics) spec·plan 작성 완료 → execute 게이트 대기. 크롤링은 백로그. 다음 = plan 승인 후 execute(라이브 DB additive·손실0)."
+status_line: "데이터 토대 스프린트(etl-safe-incremental-logistics) 우로보로스 전 단계 완료·커밋(c9c91ed)·push·Vercel 배포. 손실0 증분 적재 전환(ETL 전량삭제 제거·출처태깅·status 보존)·shipments(송장371·물류비253만)·products(COGS)·On Hold→Payment Pending. 마이그 0006~0011 라이브 적용, reconcile ALL PASS, 적대적 검토 통과. 다음 = operator-inline-entry(작업자 시트형 입력) spec 게이트 또는 effie 블로커(온에어 공유·캠페인 마스터)."
 facts:
   new_channel: "C0BDVHVNBPS = effie 신설 대시보드 전용 채널(멤버 effie·대표·이용진·함대준). 기존 작업채널 C0APNDK4QKW와 별개. 06-25~26 스펙 통째 재정의."
   research: "research/02-슬랙-대시보드-스펙-갱신-조사.md(심층조사·15상태 정본 a~o·재무·분석·정합·레퍼런스) · research/03-빌드계획-v2.md(마이그 0006~0013·로드맵 P0~P2·화면IA·§8 레퍼런스 시트·§8.1 Kangaroo·§9 크롤링 백로그). 멀티에이전트 워크플로우로 5렌즈+검증 종합."
@@ -10,7 +10,7 @@ facts:
   slack: "읽기 = ../zipiel-cs-demo/.claude/skills/zipiel-slack/slack.py. 새 채널 C0BDVHVNBPS. 토큰 vault, 발송 --dry-run 게이트."
   git: "본 세션 산출 commit 예정(research/02·03·spec·plan·session·decisions). BP·memory는 ~/.claude(별도 backup-claude)."
 next:
-  - {task: "plan 승인 후 /enometa-execute etl-safe-incremental-logistics — 마이그 0006~0009(라벨·출처태깅·products·shipments) → types/style 동기화 → ETL 손실0 재설계(AC-3) → 배송·products 적재(AC-4·5) → reconcile(AC-6) → /status(AC-7). AC-6.2 전후 스냅샷으로 손실0 검증.", done: false}
+  - {task: "[완료 2026-06-27] etl-safe-incremental-logistics 우로보로스 전단계 통과·커밋 c9c91ed·push·배포. 마이그 0006~0011 라이브 적용, ETL 손실0 멱등 재설계, shipments(371송장·253만)·products(COGS) 적재, On Hold→Payment Pending, /status 노출. reconcile ALL PASS·적대적 검토 통과.", done: true}
   - {task: "토대 후 다음 스프린트: P0-C 캠페인 1차시민화·KPI보드·역산(대표 최강 미충족) → operator-inline-entry(작업자 시트형 추가) → analytics-reporting-layer(일/주/월 시계열·달성률·인게이지먼트%, 위마케팅 2존 IA·Kangaroo 4탭 청사진).", done: false}
   - {task: "effie 차단 해소 요청: 온에어 시트(10ymVk) 공유(enometa@theframeless.co/서비스계정) + 캠페인 마스터 확정(브랜드×국가×ded/int·목표·마감·PIC). 둘 다 P1-E·P0-C 블로커.", done: false}
   - {task: "백로그: 크롤링(crawler-result-ingestion·crawl-request-trigger, source_system='crawler') + 공식API 하이브리드(발굴=크롤러, 보강=Business Discovery). zipiel-instgram 갭 패치(버너계정·풀지터백오프·헤더3개). research/03 §9.", done: false}

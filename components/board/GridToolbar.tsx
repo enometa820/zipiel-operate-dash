@@ -104,8 +104,8 @@ function ColumnManager({ prefs, onChange }: { prefs: GridPrefs; onChange: (p: Gr
                 </label>
                 {!locked && (
                   <span className="flex shrink-0">
-                    <button onClick={() => move(col.id, -1)} className="rounded p-0.5 text-[var(--faint)] hover:text-[var(--accent)]" title="Move up"><ChevronUp size={12} /></button>
-                    <button onClick={() => move(col.id, 1)} className="rounded p-0.5 text-[var(--faint)] hover:text-[var(--accent)]" title="Move down"><ChevronDown size={12} /></button>
+                    <button onClick={() => move(col.id, -1)} className="rounded p-0.5 text-[var(--faint)] hover:text-[var(--accent)]" title="Move up" aria-label={`Move ${col.label} up`}><ChevronUp size={12} /></button>
+                    <button onClick={() => move(col.id, 1)} className="rounded p-0.5 text-[var(--faint)] hover:text-[var(--accent)]" title="Move down" aria-label={`Move ${col.label} down`}><ChevronDown size={12} /></button>
                   </span>
                 )}
               </div>
