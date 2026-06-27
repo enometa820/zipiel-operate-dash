@@ -5,33 +5,33 @@
 
 ## AC Tree
 
-- [ ] **AC-1**: 상태 EN 라벨 정정 — `On Hold` → `Payment Pending` (의미·KO·페이즈는 이미 정확, EN만 교체)
-  - [ ] **AC-1.1**: 마이그레이션 `0006_payment_pending.sql` 신설 — `alter type collab_status rename value 'On Hold' to 'Payment Pending';` (기존 'On Hold' 값 행 자동 승계). `db/migrations/`·`supabase/migrations/` 양쪽에 동일 파일.
-  - [ ] **AC-1.2**: `lib/types.ts`에서 `'On Hold'` 5개 출현(Status 유니온 32·STATUS_KO 키 50·STATUSES 배열 69·STATUS_PHASE 키 163·PHASE_STATUSES Payment 184)을 `'Payment Pending'`으로 교체. STATUS_KO 값 `'지급 대기'` 유지.
-  - [ ] **AC-1.3**: `lib/status-style.ts`의 해당 상태 스타일 키 `'On Hold'` → `'Payment Pending'` 교체(색·한영 병기 유지).
-  - [ ] **AC-1.4**: `scripts/etl_seeding.py` `map_status` 테이블의 `("on hold","지급 대기",...)→"On Hold"` 행을 `→"Payment Pending"`으로 교체.
-- [ ] **AC-2**: 출처 태깅 컬럼 추가 (손실 없는 참조·증분 머지의 전제)
-  - [ ] **AC-2.1**: 마이그레이션 `0007_source_tagging.sql` — `collaborations`에 `source_system text`·`source_sheet_id text`·`source_tab text`·`source_row int`·`external_ref text` add column if not exists + `external_ref` 부분 unique 인덱스(NULL 허용) + `source_system` 인덱스.
-  - [ ] **AC-2.2**: `0007`에 `creators`의 `source_system text`·`in_legacy_list boolean not null default false` add column 포함.
-  - [ ] **AC-2.3**: `lib/types.ts` `Creator`·`Collaboration` 인터페이스에 `sourceSystem?`·`externalRef?`(Creator는 `inLegacyList?` 추가) 옵셔널 필드 추가.
-- [ ] **AC-3**: ETL을 전량삭제 → 손실 없는 멱등 upsert로 재설계 (`scripts/etl_seeding.py`)
-  - [ ] **AC-3.1**: blanket DELETE 제거 — `for t in [collaborations,creators,campaigns]: DELETE id=not.is.null`(224-227행) 삭제. `collaboration_status_history`·`content_pieces`·`payments`에 어떤 DELETE/TRUNCATE도 발행하지 않음.
-  - [ ] **AC-3.2**: 기존 14k legacy 백필 — creators·collaborations에 `source_system='legacy_contact_list'`·creators `in_legacy_list=true`·`external_ref`(안정 키 `legacy:{handle}:{platform}`) 부여. 1회 멱등(이미 태깅된 행 재실행 시 변경 0).
-  - [ ] **AC-3.3**: 멱등 upsert 로직 — creators는 `(handle,platform)` ON CONFLICT DO UPDATE(메타만), collaborations는 `external_ref` ON CONFLICT DO UPDATE. 재실행 시 행수 불변·중복 0.
-  - [ ] **AC-3.4**: 인앱 편집 보존 — collaborations upsert가 `status`를 덮어쓰지 않는 규칙(해당 collab의 `collaboration_status_history`에 `changed_by != 'system'` 전이가 있으면 status 갱신 skip). server action 편집이 ETL에 소실되지 않음.
-- [ ] **AC-4**: `products`(제품원가 COGS) 마스터 신설·시드
-  - [ ] **AC-4.1**: 마이그레이션 `0008_products.sql` — `products(id uuid pk, name text unique, sku text, cogs_krw numeric(12,2), aliases text[])` + 시드 `('세럼',2438,{serum})·('크림',2900,{cream})·('클레이',2618,{clay,마스크,mask})` `on conflict (name) do update`(멱등).
-  - [ ] **AC-4.2**: `lib/types.ts`에 `Product` 인터페이스 추가(id·name·sku?·cogsKrw·aliases).
-- [ ] **AC-5**: `shipments`(물류비·송장) 테이블 신설 + 배송 시트 적재
-  - [ ] **AC-5.1**: 마이그레이션 `0009_shipments.sql` — `shipments(invoice_no text pk, carrier text, request_date date, processed_date date, weight_g int, fee_krw numeric(12,2), country_code text, brand_tag text, customs_no text, delivery_status text, source_sheet_id text, source_row int, match_status text not null default 'unmatched')` + `collaborations.invoice_no text references shipments(invoice_no)` add column.
-  - [ ] **AC-5.2**: `scripts/etl_shipments.py` 신설 — 배송 CSV(scratchpad `ship-2081447250.csv`) → shipments upsert. 송장 dedup(제품 다행 반복 1회), carrier 라벨 정규화(K패킷·k 패킷·k패킷·K-Packet→K-Packet / 한중해상 / EMS / SeaExpress), 국가코드 칸의 'H&H'를 `brand_tag`로 분리. **PII(수취인명·전화·우편번호·주소) 컬럼 미적재.**
-  - [ ] **AC-5.3**: `lib/types.ts`에 `Shipment` 인터페이스 추가.
-- [ ] **AC-6**: 정합 검증(reconciliation) 산출 + 안전 스냅샷
-  - [ ] **AC-6.1**: `scripts/reconcile.py` 신설 — 출력: 배송 CSV 고유 송장 수 vs shipments 행수 일치 / 물류비 합(송장 dedup) 일치 / 전 행 source_system 채움률 100% / products 시드 확인 / 'On Hold' 잔존 0. PASS/FAIL 명시.
-  - [ ] **AC-6.2**: ETL 재실행 안전 검증 — 적용 전후 collaborations·creators·collaboration_status_history 행수와 임의 인앱편집 status 1건의 보존을 `reconcile.py`가 2회 실행 비교로 확인(±0·보존). (마이그레이션 적용 전 행수·status_history 카운트 스냅샷 기록.)
-- [ ] **AC-7**: 개발현황(`/status`) 최소 노출
-  - [ ] **AC-7.1**: `lib/queries.ts`에 shipments 건수·물류비 합(H&H 제외 기본)·products·source_system 분포 집계 함수 추가.
-  - [ ] **AC-7.2**: `/status` 페이지(app/status)에 위 수치를 한 줄씩 노출(shipments N건·물류비 합·products 3종·source 분포). 차트·시각화 없음(스코프 밖).
+- [x] **AC-1**: 상태 EN 라벨 정정 — `On Hold` → `Payment Pending` (의미·KO·페이즈는 이미 정확, EN만 교체)
+  - [x] **AC-1.1**: 마이그레이션 `0006_payment_pending.sql` 신설 — `alter type collab_status rename value 'On Hold' to 'Payment Pending';` (기존 'On Hold' 값 행 자동 승계). `db/migrations/`·`supabase/migrations/` 양쪽에 동일 파일.
+  - [x] **AC-1.2**: `lib/types.ts`에서 `'On Hold'` 5개 출현(Status 유니온 32·STATUS_KO 키 50·STATUSES 배열 69·STATUS_PHASE 키 163·PHASE_STATUSES Payment 184)을 `'Payment Pending'`으로 교체. STATUS_KO 값 `'지급 대기'` 유지.
+  - [x] **AC-1.3**: `lib/status-style.ts`의 해당 상태 스타일 키 `'On Hold'` → `'Payment Pending'` 교체(색·한영 병기 유지).
+  - [x] **AC-1.4**: `scripts/etl_seeding.py` `map_status` 테이블의 `("on hold","지급 대기",...)→"On Hold"` 행을 `→"Payment Pending"`으로 교체.
+- [x] **AC-2**: 출처 태깅 컬럼 추가 (손실 없는 참조·증분 머지의 전제)
+  - [x] **AC-2.1**: 마이그레이션 `0007_source_tagging.sql` — `collaborations`에 `source_system text`·`source_sheet_id text`·`source_tab text`·`source_row int`·`external_ref text` add column if not exists + `external_ref` 부분 unique 인덱스(NULL 허용) + `source_system` 인덱스.
+  - [x] **AC-2.2**: `0007`에 `creators`의 `source_system text`·`in_legacy_list boolean not null default false` add column 포함.
+  - [x] **AC-2.3**: `lib/types.ts` `Creator`·`Collaboration` 인터페이스에 `sourceSystem?`·`externalRef?`(Creator는 `inLegacyList?` 추가) 옵셔널 필드 추가.
+- [x] **AC-3**: ETL을 전량삭제 → 손실 없는 멱등 upsert로 재설계 (`scripts/etl_seeding.py`)
+  - [x] **AC-3.1**: blanket DELETE 제거 — `for t in [collaborations,creators,campaigns]: DELETE id=not.is.null`(224-227행) 삭제. `collaboration_status_history`·`content_pieces`·`payments`에 어떤 DELETE/TRUNCATE도 발행하지 않음.
+  - [x] **AC-3.2**: 기존 14k legacy 백필 — creators·collaborations에 `source_system='legacy_contact_list'`·creators `in_legacy_list=true`·`external_ref`(안정 키 `legacy:{handle}:{platform}`) 부여. 1회 멱등(이미 태깅된 행 재실행 시 변경 0).
+  - [x] **AC-3.3**: 멱등 upsert 로직 — creators는 `(handle,platform)` ON CONFLICT DO UPDATE(메타만), collaborations는 `external_ref` ON CONFLICT DO UPDATE. 재실행 시 행수 불변·중복 0.
+  - [x] **AC-3.4**: 인앱 편집 보존 — collaborations upsert가 `status`를 덮어쓰지 않는 규칙(해당 collab의 `collaboration_status_history`에 `changed_by != 'system'` 전이가 있으면 status 갱신 skip). server action 편집이 ETL에 소실되지 않음.
+- [x] **AC-4**: `products`(제품원가 COGS) 마스터 신설·시드
+  - [x] **AC-4.1**: 마이그레이션 `0008_products.sql` — `products(id uuid pk, name text unique, sku text, cogs_krw numeric(12,2), aliases text[])` + 시드 `('세럼',2438,{serum})·('크림',2900,{cream})·('클레이',2618,{clay,마스크,mask})` `on conflict (name) do update`(멱등).
+  - [x] **AC-4.2**: `lib/types.ts`에 `Product` 인터페이스 추가(id·name·sku?·cogsKrw·aliases).
+- [x] **AC-5**: `shipments`(물류비·송장) 테이블 신설 + 배송 시트 적재
+  - [x] **AC-5.1**: 마이그레이션 `0009_shipments.sql` — `shipments(invoice_no text pk, carrier text, request_date date, processed_date date, weight_g int, fee_krw numeric(12,2), country_code text, brand_tag text, customs_no text, delivery_status text, source_sheet_id text, source_row int, match_status text not null default 'unmatched')` + `collaborations.invoice_no text references shipments(invoice_no)` add column.
+  - [x] **AC-5.2**: `scripts/etl_shipments.py` 신설 — 배송 CSV(scratchpad `ship-2081447250.csv`) → shipments upsert. 송장 dedup(제품 다행 반복 1회), carrier 라벨 정규화(K패킷·k 패킷·k패킷·K-Packet→K-Packet / 한중해상 / EMS / SeaExpress), 국가코드 칸의 'H&H'를 `brand_tag`로 분리. **PII(수취인명·전화·우편번호·주소) 컬럼 미적재.**
+  - [x] **AC-5.3**: `lib/types.ts`에 `Shipment` 인터페이스 추가.
+- [x] **AC-6**: 정합 검증(reconciliation) 산출 + 안전 스냅샷
+  - [x] **AC-6.1**: `scripts/reconcile.py` 신설 — 출력: 배송 CSV 고유 송장 수 vs shipments 행수 일치 / 물류비 합(송장 dedup) 일치 / 전 행 source_system 채움률 100% / products 시드 확인 / 'On Hold' 잔존 0. PASS/FAIL 명시.
+  - [x] **AC-6.2**: ETL 재실행 안전 검증 — 적용 전후 collaborations·creators·collaboration_status_history 행수와 임의 인앱편집 status 1건의 보존을 `reconcile.py`가 2회 실행 비교로 확인(±0·보존). (마이그레이션 적용 전 행수·status_history 카운트 스냅샷 기록.)
+- [x] **AC-7**: 개발현황(`/status`) 최소 노출
+  - [x] **AC-7.1**: `lib/queries.ts`에 shipments 건수·물류비 합(H&H 제외 기본)·products·source_system 분포 집계 함수 추가.
+  - [x] **AC-7.2**: `/status` 페이지(app/status)에 위 수치를 한 줄씩 노출(shipments N건·물류비 합·products 3종·source 분포). 차트·시각화 없음(스코프 밖).
 
 ## 메타
 

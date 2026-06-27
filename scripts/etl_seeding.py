@@ -1,5 +1,6 @@
-# ETL: ALL list tabs (On-Air + country [List] tabs) -> normalized 6 tables.
-# Full rebuild. Reads .env.local. FICTIONAL/real creators from gitignored snapshot.
+# ETL: ALL list tabs (On-Air + country [List] tabs) -> normalized tables.
+# SAFE SYNC (additive·idempotent·no wipe — see "SAFE SYNC" block below).
+# Reads .env.local. Real creators from gitignored snapshot (PII).
 import csv, json, re, glob, sys, io, urllib.request, urllib.error
 from collections import Counter
 
@@ -60,7 +61,7 @@ def map_status(s):
         (("guideline sent", "guidelines sent", "가이드라인 전달", "가이드라인"), "Guideline Sent"),
         (("content in production", "콘텐츠 제작 중", "제작 중", "제작중"), "Content in Production"),
         (("content uploaded", "content published", "콘텐츠 업로드 완료", "업로드 완료", "업로드완료"), "Content Uploaded"),
-        (("on hold", "지급 대기", "지급대기", "payment", "지급"), "On Hold"),
+        (("on hold", "payment pending", "지급 대기", "지급대기", "payment", "지급"), "Payment Pending"),
         (("negotiating", "협업 조건 조율", "in discussion", "협의"), "Negotiating"),
         (("rate inquiry", "rate", "단가"), "Rate Inquiry"),
         (("confirmed to proceed", "진행 확정", "진행확정", "confirmed"), "Confirmed to Proceed"),
@@ -221,42 +222,101 @@ for pattern, default_country in SOURCES:
 
 print(f"\n총 파싱: {len(records)}건")
 
-# wipe
-for t in ["collaborations", "creators", "campaigns"]:
-    api("DELETE", f"/{t}?id=not.is.null", prefer="return=minimal")
-print("기존 데이터 삭제")
+# ============================================================================
+# SAFE SYNC — additive·idempotent·provenance-tagged. NO wipe. (AC-3)
+# Contract: legacy contact-list rows are FROZEN — imported once, never deleted or
+# re-inserted. Re-runs only (a) upsert creator meta by (handle,platform),
+# (b) tag provenance on still-untagged rows, (c) leave collaborations untouched
+# when they already exist. status & collaboration_status_history are NEVER written
+# here, so in-app (manager) edits survive every re-run (AC-3.4, stronger than the
+# conditional skip rule: we simply never put `status` in any write payload).
+# external_ref backfill = 'legacy:'||id (stable, unique). products seed lives in
+# migration 0008. No DELETE/TRUNCATE is issued anywhere in this script.
+# ============================================================================
+LEGACY = "legacy_contact_list"
 
-# campaigns
+def paged_get(path):
+    out, step, i = [], 1000, 0
+    while True:
+        sep = "&" if "?" in path else "?"
+        chunk = api("GET", f"{path}{sep}limit={step}&offset={i}")
+        if not chunk:
+            break
+        out.extend(chunk)
+        if len(chunk) < step:
+            break
+        i += step
+    return out
+
+def upsert(table, rows, on_conflict, size=500):
+    for i in range(0, len(rows), size):
+        api("POST", f"/{table}?on_conflict={on_conflict}", rows[i:i+size],
+            prefer="resolution=merge-duplicates,return=minimal")
+
+# (1) campaigns — idempotent: reuse existing by type, create only missing.
 types = sorted({r["campaign_type"] for r in records})
-camp = api("POST", "/campaigns", [{"name": f"Seeding {t}", "type": t, "brand": "zipiel"} for t in types], prefer="return=representation")
-camp_id = {c["type"]: c["id"] for c in camp}
+camp_existing = paged_get("/campaigns?select=id,type")
+camp_id = {c["type"]: c["id"] for c in camp_existing}
+missing = [t for t in types if t not in camp_id]
+if missing:
+    created = api("POST", "/campaigns",
+                  [{"name": f"Seeding {t}", "type": t, "brand": "zipiel"} for t in missing],
+                  prefer="return=representation")
+    camp_id.update({c["type"]: c["id"] for c in (created or [])})
+print(f"캠페인: {len(camp_id)} (신규 {len(missing)})")
 
-# creators dedup by (handle, platform)
+# (2) creators — upsert by (handle,platform). frozen legacy: tag source + legacy flag.
 seen, cre_payload = {}, []
 for r in records:
     key = (r["handle"], r["platform"])
-    if key in seen: continue
+    if key in seen:
+        continue
     seen[key] = True
-    cre_payload.append({k: r[k] for k in ["handle", "name", "platform", "country", "followers", "tier", "email", "manager", "avg_views"]})
-cre = insert_batched("creators", cre_payload, returning=True)
-cre_id = {(c["handle"], c["platform"]): c["id"] for c in cre}
-print(f"크리에이터: {len(cre)} (중복 제거 후)")
+    row = {k: r[k] for k in ["handle", "name", "platform", "country", "followers", "tier", "email", "manager", "avg_views"]}
+    row["source_system"] = LEGACY
+    row["in_legacy_list"] = True
+    cre_payload.append(row)
+upsert("creators", cre_payload, on_conflict="handle,platform")
+cre_id = {(c["handle"], c["platform"]): c["id"] for c in paged_get("/creators?select=id,handle,platform")}
+print(f"크리에이터: {len(cre_id)} (upsert merge, 중복 0)")
 
-# collaborations (all rows)
-col_payload = []
-for r in records:
-    cid = cre_id.get((r["handle"], r["platform"]))
-    if not cid: continue
-    col_payload.append({
-        "creator_id": cid, "campaign_id": camp_id[r["campaign_type"]],
-        "status": r["status"], "manager": r["manager"],
-        "content_fee_krw": r["fee"], "fee_source": r["fee_source"], "cpv": r["cpv"],
-        "listed_date": r["listed_date"], "last_contact": r["last_contact"],
-        "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
-    })
-insert_batched("collaborations", col_payload)
-print(f"협업: {len(col_payload)}")
+# (3) collaborations — frozen import guard: insert the full legacy set ONLY when the
+# table is empty (first load). If rows already exist, do NOT re-insert (no dup, no
+# status overwrite). Existing live DB (14k) takes the skip branch.
+existing_collab = api("GET", "/collaborations?select=id&limit=1")
+if not existing_collab:
+    col_payload, ordinal = [], {}
+    for r in records:
+        cid = cre_id.get((r["handle"], r["platform"]))
+        if not cid:
+            continue
+        key = (r["handle"], r["platform"])
+        n = ordinal.get(key, 0); ordinal[key] = n + 1
+        col_payload.append({
+            "creator_id": cid, "campaign_id": camp_id[r["campaign_type"]],
+            "status": r["status"], "manager": r["manager"],
+            "content_fee_krw": r["fee"], "fee_source": r["fee_source"], "cpv": r["cpv"],
+            "listed_date": r["listed_date"], "last_contact": r["last_contact"],
+            "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
+            "source_system": LEGACY,
+            "external_ref": f"legacy:{r['handle']}:{r['platform']}:{n}",  # stable natural key
+        })
+    insert_batched("collaborations", col_payload)
+    print(f"협업: {len(col_payload)} (최초 적재, external_ref 인라인)")
+else:
+    print("협업: 기존 데이터 존재 → 재삽입 생략(frozen, 손실 0)")
 
-print("\n상태 분포:", dict(Counter(r["status"] for r in records).most_common()))
-print("국가 분포:", dict(Counter(r["country"] for r in records).most_common()))
-print("ETL 완료")
+# (4) provenance backfill (source_system) — PATCH constant, one statement, idempotent.
+# status is NEVER in any write payload here, so manager edits & status_history survive
+# every re-run (AC-3.4, stronger than a conditional skip). external_ref for pre-existing
+# rows is a column-expression backfill (PostgREST PATCH can't do col=expr) → handled
+# once by migration 0010_legacy_backfill.sql ('legacy:'||id). 2nd run touches 0 rows.
+protected = paged_get("/collaboration_status_history?select=collaboration_id&changed_by=neq.system")
+print(f"보존 대상(인앱 편집 이력): {len({h['collaboration_id'] for h in protected})}건 — ETL이 status 미기록 → 전수 보존")
+api("PATCH", "/collaborations?source_system=is.null", {"source_system": LEGACY}, prefer="return=minimal")
+api("PATCH", "/creators?source_system=is.null", {"source_system": LEGACY, "in_legacy_list": True}, prefer="return=minimal")
+print("출처 태깅 백필(source_system) 완료 — external_ref는 migration 0010이 1회 적용")
+
+print("\n상태 분포(파싱):", dict(Counter(r["status"] for r in records).most_common()))
+print("국가 분포(파싱):", dict(Counter(r["country"] for r in records).most_common()))
+print("SAFE SYNC 완료 — DELETE/TRUNCATE 0, status_history 무변경")

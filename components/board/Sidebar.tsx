@@ -35,7 +35,7 @@ const VIEWS: View[] = [
   { id: "nego", label: "In negotiation", icon: Handshake, statuses: PHASE_STATUSES.Negotiation },
   { id: "ship", label: "Awaiting shipping", icon: Truck, statuses: ["Request Shipping Information", "Shipping"] },
   { id: "content", label: "Content due", icon: Clapperboard, statuses: PHASE_STATUSES.Content },
-  { id: "pay", label: "Payment pending", icon: CircleDollarSign, statuses: ["On Hold"] },
+  { id: "pay", label: "Payment pending", icon: CircleDollarSign, statuses: ["Payment Pending"] },
   { id: "done", label: "Completed", icon: Activity, statuses: ["Completed"] },
 ];
 

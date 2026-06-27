@@ -1,12 +1,13 @@
 import { NavTabs } from "@/components/NavTabs";
-import { fetchStats } from "@/lib/queries";
+import { fetchStats, fetchLogisticsStats } from "@/lib/queries";
 import { COUNTRY_FLAG, PHASES, PHASE_META, type Country } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 // 한글 개발현황 — 비개발자(매니저)도 한눈에 이해하도록
 export default async function StatusPage() {
-  const stats = await fetchStats();
+  const [stats, logi] = await Promise.all([fetchStats(), fetchLogisticsStats()]);
+  const krw = (n: number) => `${n.toLocaleString()}원`;
 
   const countryName: Record<string, string> = {
     JP: "일본", CN: "중국", TW: "대만", KR: "한국",
@@ -59,6 +60,44 @@ export default async function StatusPage() {
             .map(([c, n]) => ({ label: c, ko: c === "Gifted" ? "무가(제품제공)" : c === "Paid" ? "유가(비용)" : "어필리에이트", n, color: "var(--phase-fulfillment)" }))}
           total={stats.total}
         />
+      </section>
+
+      {/* 물류·제품 원가·데이터 출처 (데이터 토대 스프린트 산출) */}
+      <section className="card p-5 mb-4">
+        <h2 className="text-sm font-semibold mb-4">물류·제품 원가·데이터 출처</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <Stat label="배송 송장" value={logi.shipments.toLocaleString()} unit="건" />
+          <Stat label="물류비 (H&H 제외)" value={logi.feeKrwExclHH.toLocaleString()} unit="원" />
+          <Stat label="물류비 (전체)" value={logi.feeKrwTotal.toLocaleString()} unit="원" />
+          <Stat label="제품 원가" value={logi.products.length.toLocaleString()} unit="종" />
+        </div>
+
+        <div className="text-xs font-semibold text-[var(--muted)] mb-2">제품 원가 (COGS)</div>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {logi.products.map((p) => (
+            <span key={p.name} className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-2.5 py-1 text-xs">
+              {p.name} · <span className="tabular-nums font-medium">{p.cogsKrw != null ? krw(p.cogsKrw) : "-"}</span>
+            </span>
+          ))}
+          {!logi.products.length && <span className="text-xs text-[var(--faint)]">아직 없음</span>}
+        </div>
+
+        <Bars
+          title="데이터 출처 (협업 행 기준)"
+          data={Object.entries(logi.sourceDistribution)
+            .sort((a, b) => b[1] - a[1])
+            .map(([s, n]) => ({
+              label: s === "legacy_contact_list" ? "기존 컨택 리스트" : s,
+              ko: s === "legacy_contact_list" ? "발굴 풀(legacy)" : "",
+              n,
+              color: "var(--phase-sourcing)",
+            }))}
+          total={stats.total}
+        />
+        <p className="text-[11px] text-[var(--faint)] mt-3">
+          모든 협업 행에 출처가 새겨져 있어, 시트를 다시 가져와도 기존 데이터·상태 이력이 지워지지 않습니다(손실 없는 증분 적재).
+          물류비 기본 표기는 타브랜드(H&H)를 제외한 zipiel 발송분입니다.
+        </p>
       </section>
 
       {/* 기능 */}
@@ -144,6 +183,8 @@ const FEATURES = [
   { done: true, t: "시트형 작업 그리드", d: "가로 스크롤 없이 화면 폭에 맞춰 협업을 시트처럼 스캔·바로 편집(상태·담당자·날짜·금액), 상태·국가·담당자·날짜 필터" },
   { done: true, t: "합산 근거 표기", d: "집계 금액·건수에 산출 근거(포함/제외 규칙·fee 원장)를 함께 표기 — 개발단계에 옳고 그름을 검산 가능하게" },
   { done: true, t: "실제 지급 입력", d: "Deal 페이지에서 지급액·거주지별 세금·상태를 기록 → Overview의 Executed fee가 시트 추정에서 실집행값으로 전환" },
+  { done: true, t: "손실 없는 데이터 토대", d: "시트를 다시 가져와도 기존 데이터·상태 이력·편집이 지워지지 않는 증분 적재로 전환. 모든 행에 출처를 기록 — 작업자 입력·새 시트·크롤링 결과를 안전하게 얹을 수 있음." },
+  { done: true, t: "물류비·제품 원가", d: "배송 송장(물류비)과 제품 원가(세럼·크림·클레이)를 정본 테이블로 적재 — 수익성 계산의 토대. 수취인 개인정보는 저장하지 않음." },
   { done: false, t: "콘텐츠 성과", d: "조회수·좋아요·CPV 실값 — 시트에 성과가 쌓이면 자동 반영(현재 시트엔 거의 없음)" },
 ];
 
@@ -159,4 +200,5 @@ const LOG = [
   { t: "보는/하는 화면 분리 + 시트형 그리드", d: "Overview(건강도·시각화)와 Work board(가로 스크롤 없는 시트형 작업 그리드) 분리. 합산엔 근거 동반." },
   { t: "지급 입력 흐름", d: "Deal 페이지에 지급 기록(금액·세금분기·상태) 추가 — payments가 쌓이면 Executed fee가 실집행값으로 자동 전환." },
   { t: "로딩·속도 최적화", d: "로그인·페이지 로딩 표시. 집계는 최소 컬럼+캐시, 조회는 병렬 페이지네이션, 작업면은 기본 active만 로드(발굴 풀은 토글 시) — Overview 2.6s→0.7s, 작업면 5.4s→0.1s." },
+  { t: "손실 없는 데이터 토대 + 물류·원가", d: "ETL 전량삭제를 멱등 증분 적재로 교체(재실행해도 데이터·이력 보존), 모든 행에 출처 기록. 배송 송장(물류비)·제품 원가 테이블 신설·적재. 상태 라벨 'On Hold'→'Payment Pending' 정정." },
 ];

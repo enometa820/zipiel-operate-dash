@@ -29,7 +29,7 @@ export type Status =
   | "Guideline Sent"
   | "Content in Production"
   | "Content Uploaded"
-  | "On Hold"
+  | "Payment Pending"
   | "Simple Seeding/PR"
   | "Completed"
   | "Drop";
@@ -47,7 +47,7 @@ export const STATUS_KO: Record<Status, string> = {
   "Guideline Sent": "가이드라인 전달",
   "Content in Production": "콘텐츠 제작 중",
   "Content Uploaded": "콘텐츠 업로드 완료",
-  "On Hold": "지급 대기",
+  "Payment Pending": "지급 대기",
   "Simple Seeding/PR": "단순시딩/PR",
   Completed: "협업완료",
   Drop: "드랍",
@@ -66,7 +66,7 @@ export const STATUSES: Status[] = [
   "Guideline Sent",
   "Content in Production",
   "Content Uploaded",
-  "On Hold",
+  "Payment Pending",
   "Simple Seeding/PR",
   "Completed",
   "Drop",
@@ -100,6 +100,8 @@ export interface Creator {
   email?: string;
   manager: string;
   avgViews?: number;
+  sourceSystem?: string; // provenance — legacy_contact_list / onair_2026 / crawler ...
+  inLegacyList?: boolean; // 기존 컨택 리스트(발굴 풀) 중복 인원 표시·필터용
 }
 
 export interface Campaign {
@@ -124,6 +126,31 @@ export interface Collaboration {
   listedDate?: string;
   scheduledPostDate?: string;
   notes?: string;
+  sourceSystem?: string; // provenance
+  externalRef?: string; // source natural key (e.g. legacy:{handle}:{platform})
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  sku?: string;
+  cogsKrw?: number;
+  aliases: string[];
+}
+
+export interface Shipment {
+  invoiceNo: string;
+  sourceSystem?: string; // provenance — 'ship_sheet'
+  carrier?: string;
+  requestDate?: string;
+  processedDate?: string;
+  weightG?: number;
+  feeKrw?: number;
+  countryCode?: string;
+  brandTag?: string;
+  customsNo?: string;
+  deliveryStatus?: string;
+  matchStatus: string;
 }
 
 export interface StatusEvent {
@@ -160,7 +187,7 @@ export const STATUS_PHASE: Record<Status, BoardColumn> = {
   "Guideline Sent": "Content",
   "Content in Production": "Content",
   "Content Uploaded": "Content",
-  "On Hold": "Payment",
+  "Payment Pending": "Payment",
   Completed: "Done",
   "Simple Seeding/PR": "Seeding",
   Drop: "Dropped",
@@ -180,7 +207,7 @@ export const PHASE_STATUSES: Record<Phase, Status[]> = {
   Negotiation: ["Negotiating", "Rate Inquiry", "Confirmed to Proceed"],
   Fulfillment: ["Contract", "Request Shipping Information", "Shipping"],
   Content: ["Guideline Sent", "Content in Production", "Content Uploaded"],
-  Payment: ["On Hold"],
+  Payment: ["Payment Pending"],
   Done: ["Completed"],
 };
 

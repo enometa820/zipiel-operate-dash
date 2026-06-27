@@ -36,13 +36,13 @@ export const collaborations: Collaboration[] = [
   { id: "co-8", creatorId: "cr-6", campaignId: "cmp-1", status: "Guideline Sent", manager: "anna", lastContact: "2026-06-18" },
   { id: "co-9", creatorId: "cr-5", campaignId: "cmp-1", status: "Content in Production", manager: "nhi", lastContact: "2026-06-17" },
   { id: "co-10", creatorId: "cr-2", campaignId: "cmp-2", status: "Content Uploaded", manager: "anna", postUrl: "https://instagram.com/p/xyz", cpv: 4.9, lastContact: "2026-06-15" },
-  { id: "co-11", creatorId: "cr-7", campaignId: "cmp-2", status: "On Hold", manager: "anna", contentFeeKrw: 1800000, cpv: 5.3, postUrl: "https://x.com/post", lastContact: "2026-06-12" },
+  { id: "co-11", creatorId: "cr-7", campaignId: "cmp-2", status: "Payment Pending", manager: "anna", contentFeeKrw: 1800000, cpv: 5.3, postUrl: "https://x.com/post", lastContact: "2026-06-12" },
   { id: "co-12", creatorId: "cr-12", campaignId: "cmp-3", status: "Completed", manager: "nhi", contentFeeKrw: 600000, cpv: 4.0, postUrl: "https://instagram.com/p/abc", lastContact: "2026-06-10" },
   { id: "co-13", creatorId: "cr-10", campaignId: "cmp-1", status: "Drop", manager: "anna", lastContact: "2026-06-08", notes: "No reply 1 month+" },
 ];
 
 export const statusEvents: StatusEvent[] = [
-  { id: "ev-1", collaborationId: "co-11", from: "Content Uploaded", to: "On Hold", changedBy: "anna", changedAt: "2026-06-12T09:00:00Z" },
+  { id: "ev-1", collaborationId: "co-11", from: "Content Uploaded", to: "Payment Pending", changedBy: "anna", changedAt: "2026-06-12T09:00:00Z" },
   { id: "ev-2", collaborationId: "co-11", from: "Content in Production", to: "Content Uploaded", changedBy: "anna", changedAt: "2026-06-10T09:00:00Z" },
   { id: "ev-3", collaborationId: "co-11", from: "Confirmed to Proceed", to: "Content in Production", changedBy: "anna", changedAt: "2026-06-05T09:00:00Z" },
 ];

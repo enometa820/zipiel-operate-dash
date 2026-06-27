@@ -221,6 +221,61 @@ export async function fetchStats(): Promise<Stats> {
   };
 }
 
+// ---- Logistics / products / provenance (AC-7) — /status 노출용 최소 집계 ----
+
+export interface LogisticsStats {
+  shipments: number;
+  feeKrwTotal: number; // 전체 물류비 합
+  feeKrwExclHH: number; // H&H(타브랜드) 제외 — 기본 표기값
+  products: { name: string; cogsKrw: number | null }[];
+  sourceDistribution: Record<string, number>; // collaborations by source_system
+}
+
+async function rawLogisticsStats(): Promise<LogisticsStats> {
+  const sb = createServerClient();
+  const empty: LogisticsStats = {
+    shipments: 0,
+    feeKrwTotal: 0,
+    feeKrwExclHH: 0,
+    products: [],
+    sourceDistribution: {},
+  };
+  if (!sb) return empty;
+
+  const { count: shipments } = await sb.from("shipments").select("*", { count: "exact", head: true });
+  const { data: fees } = await sb.from("shipments").select("fee_krw, brand_tag");
+  let feeKrwTotal = 0;
+  let feeKrwExclHH = 0;
+  for (const f of (fees ?? []) as { fee_krw: number | null; brand_tag: string | null }[]) {
+    const v = Number(f.fee_krw) || 0;
+    feeKrwTotal += v;
+    if (f.brand_tag !== "H&H") feeKrwExclHH += v;
+  }
+  const { data: prods } = await sb.from("products").select("name, cogs_krw").order("name");
+  const products = ((prods ?? []) as { name: string; cogs_krw: number | null }[]).map((p) => ({
+    name: p.name,
+    cogsKrw: p.cogs_krw != null ? Number(p.cogs_krw) : null,
+  }));
+
+  // source_system 분포 — 소스가 소수라 known 값별 count(head)로 가볍게.
+  const total = (await sb.from("collaborations").select("*", { count: "exact", head: true })).count ?? 0;
+  const legacy =
+    (await sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", "legacy_contact_list")).count ?? 0;
+  const untagged =
+    (await sb.from("collaborations").select("*", { count: "exact", head: true }).is("source_system", null)).count ?? 0;
+  const sourceDistribution: Record<string, number> = { legacy_contact_list: legacy };
+  const other = total - legacy - untagged;
+  if (other > 0) sourceDistribution["기타"] = other;
+  if (untagged > 0) sourceDistribution["(미태깅)"] = untagged;
+
+  return { shipments: shipments ?? 0, feeKrwTotal, feeKrwExclHH, products, sourceDistribution };
+}
+
+export const fetchLogisticsStats = unstable_cache(rawLogisticsStats, ["logistics-stats"], {
+  tags: ["collabs"],
+  revalidate: 300,
+});
+
 // ---- Overview (보는 화면) — 정직 KPI. 가짜 약정액 금지, fee_source 게이트. ----
 
 const DONE_STATUSES = new Set(["Content Uploaded", "Completed"]);

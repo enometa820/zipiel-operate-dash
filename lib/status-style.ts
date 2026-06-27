@@ -6,11 +6,11 @@ import { STATUS_KO, type Status } from "./types";
 export interface StatusStyle {
   bg: string;
   fg: string;
-  filled?: boolean; // 채움(진한 배경+흰 글씨) — On Hold·Completed
+  filled?: boolean; // 채움(진한 배경+흰 글씨) — Payment Pending·Completed
 }
 
 // 시트 색계열: 협의군=로즈 · Contract=앰버 · 배송군=초록 · Guideline=파랑 ·
-// Production=청록 · Uploaded=보라 · On Hold=마룬채움 · Completed=다크채움 ·
+// Production=청록 · Uploaded=보라 · Payment Pending=마룬채움 · Completed=다크채움 ·
 // Listing/Seeding=중립 · Drop=연레드.
 export const STATUS_STYLE: Record<Status, StatusStyle> = {
   Listing: { bg: "#eef2f6", fg: "#5b6472" },
@@ -24,7 +24,7 @@ export const STATUS_STYLE: Record<Status, StatusStyle> = {
   "Guideline Sent": { bg: "#dbeafe", fg: "#1d4ed8" },
   "Content in Production": { bg: "#cffafe", fg: "#0e7490" },
   "Content Uploaded": { bg: "#ede9fe", fg: "#6d28d9" },
-  "On Hold": { bg: "#9f1239", fg: "#ffffff", filled: true },
+  "Payment Pending": { bg: "#9f1239", fg: "#ffffff", filled: true },
   "Simple Seeding/PR": { bg: "#f1f5f9", fg: "#64748b" },
   Completed: { bg: "#334155", fg: "#ffffff", filled: true },
   Drop: { bg: "#fee2e2", fg: "#b91c1c" },
