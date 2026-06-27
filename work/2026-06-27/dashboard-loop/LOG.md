@@ -57,3 +57,13 @@
 - 검증: tsc·vitest 16·lint·build 0. DB·데이터 변경 0(코드/UI만).
 - 보류(승인큐): 모바일 전면 대응(제품 결정)·invoice↔shipment JOIN 구조·Supabase 전역 타임아웃·NavTabs 서버경계 리팩토링.
 - 회고: 3라운드째라 자율큐가 점점 '복원력·a11y·노출' 같은 마감 품질로 이동. 핵심 결함(KPI 정직성·데이터손실·정확성)은 1·2라운드서 소진. 다음 라운드는 가치 체크를 더 엄격히 — 마르면 대기 모드.
+
+### 누적 회귀 검증 + 대기 모드 전환
+- **적대적 회귀검증(c9c91ed..c78d9c9, 29파일)**: enometa-adversarial-verifier 격리 검토 → **PASS, 회귀 0건**. executedFee 게이트·feeLedger 분기·pagedAll throw·SELECT narrowing·paidAt 왕복·죽은코드 제거·에러상태·NaN가드 전부 호출처/스키마 정합. 지적된 일관성 갭 1건(DealPage 헤더 한글만) → fcdf045로 한/영 병기 통일.
+- **대기 모드 전환 근거**: 3라운드+검증으로 고가치 자율큐(코드만·외부영향0·되돌리기쉬움) 소진. 남은 고가치는 전부 사용자 게이트(operator 새행UX·모바일전면·RLS정책·to_date재적재·pytest·invoice JOIN·온에어시트·캠페인마스터). 글로벌 룰 "죽은 재고 금지"에 따라 폴리시 라운드를 더 찍지 않고 대기. 사용자가 승인큐 중 택해 지시하면 재개.
+
+## 밤샘 루프 최종 요약 (아침 확인용)
+- **커밋 5개 전부 배포**: c9c91ed(토대) · 43155dc(R1) · 1779099(R2) · c78d9c9(R3) · fcdf045(일관성). `git log --oneline` 참조.
+- **라이브 DB**: 마이그 0006~0012 적용(enum·출처태깅·products·shipments·legacy백필·인덱스). reconcile ALL PASS, 14,110협업·12,845크리에이터·371송장 무손실.
+- **테스트**: `npm test`(vitest 16 green). **검증**: tsc·lint·build·적대적검증 전부 통과.
+- **다음 결정은 사용자 몫**: `.planning/intel/session.yaml` next 큐의 승인 대기 6항목 중 우선순위 선택.
