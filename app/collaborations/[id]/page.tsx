@@ -5,7 +5,7 @@ import { formatCompact, formatKrw, formatDate, daysAgo } from "@/lib/utils";
 import { CampaignBadge, CountryFlag, LegacyBadge, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusEditor } from "@/components/StatusEditor";
 import { PaymentEditor } from "@/components/PaymentEditor";
-import { STATUS_KO } from "@/lib/types";
+import { statusLabel } from "@/lib/status-style";
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,7 +48,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <div className="flex flex-col items-end gap-2">
             <StatusEditor id={co.id} status={co.status} />
             <p className="text-xs text-[var(--muted)]">
-              {STATUS_KO[co.status]} · last contact {daysAgo(co.lastContact)}
+              {statusLabel(co.status)} · last contact {daysAgo(co.lastContact)}
             </p>
           </div>
         </div>
