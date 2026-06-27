@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchCollaborationView, fetchPayment, fetchStatusEvents } from "@/lib/queries";
 import { formatCompact, formatKrw, formatDate, daysAgo } from "@/lib/utils";
-import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
+import { CampaignBadge, CountryFlag, LegacyBadge, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusEditor } from "@/components/StatusEditor";
 import { PaymentEditor } from "@/components/PaymentEditor";
 import { STATUS_KO } from "@/lib/types";
@@ -42,6 +42,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               <TierBadge tier={co.creator.tier} />
               <CampaignBadge type={co.campaign.type} />
               <ManagerBadge manager={co.manager} />
+              {co.creator.inLegacyList && <LegacyBadge />}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -68,6 +69,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             <Row label="Listed date" value={formatDate(co.listedDate)} />
             <Row label="Last contact" value={formatDate(co.lastContact)} />
             <Row label="Scheduled upload" value={formatDate(co.scheduledPostDate)} />
+            {co.sourceSystem && <Row label="Source" value={co.sourceSystem === "legacy_contact_list" ? "Legacy contact list" : co.sourceSystem} />}
           </div>
           <p className="text-[11px] text-[var(--faint)] mt-2">CPV = content fee ÷ avg views of last 6 posts</p>
           {co.notes && <p className="text-sm text-[var(--muted)] mt-3 pt-3 border-t border-[var(--border)]">{co.notes}</p>}

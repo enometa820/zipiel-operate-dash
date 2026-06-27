@@ -45,3 +45,15 @@
 - 검증: vitest 16 · tsc · build · lint 0. (이번 라운드 스키마·데이터 변경 0 — 읽기경로/UI/스크립트만.)
 - 보류: **item5 pytest ETL** — main-guard 재구조화가 라이브 파이프라인 구조 변경이라 무인 루프 리스크>가치, 사용자 확인 후. RLS products/shipments 정책(라이브 접근제어, service key로 현재 동작), to_date 달력검증+ETL 재적재(데이터 정정) — 승인큐.
 - 회고: rank1은 진짜 버그였음(발굴 가치 입증). 읽기경로 변경이라 무배포 리스크 낮음. 라운드3는 미답 영역(반응형/모바일·DetailPanel 에러상태·Deal페이지 정보밀도·번들/이미지)로.
+
+### 라운드 3 (심야) — 복원력·발굴풀노출·접근성 (완료·배포)
+- 발굴: 6렌즈(반응형·로딩에러·웹바이탈·카피·Deal밀도·심화a11y) → 자율큐 8. 종합이 'copy-i18n 한글누출' 오탐을 정확히 배제(한/영 병기는 memory 정본·의도 설계).
+- 구현(8건):
+  - **복원력**: app/error.tsx 라우트 에러경계 신설(DB장애 시 흰화면→재시도) · DetailPanel 결제/이력 fetch 실패 무한 'Loading…' 차단(에러상태 표시) · pagedAll 첫페이지 에러 throw(조용한 빈 보드→error.tsx 재시도) · 토스트 aria-live.
+  - **발굴풀 노출(effie 요구)**: LegacyBadge + Source 행 — DetailPanel·Deal page에 legacy 발굴풀 배지·출처 표시(데이터는 이미 매핑됨, UI만).
+  - **접근성**: WorkGrid 데이터 행 키보드 포커스·role·aria-label·focus-ring · NavTabs aria-current · StatusEditor/GridToolbar aria.
+  - **반응형**: DetailPanel 좁은 뷰포트 오버플로 수정(w-min(100vw-1.5rem,440px)).
+  - **정합**: CLAUDE.md 상태머신 stale 'On Hold'→'Payment Pending'(D-17) 교정.
+- 검증: tsc·vitest 16·lint·build 0. DB·데이터 변경 0(코드/UI만).
+- 보류(승인큐): 모바일 전면 대응(제품 결정)·invoice↔shipment JOIN 구조·Supabase 전역 타임아웃·NavTabs 서버경계 리팩토링.
+- 회고: 3라운드째라 자율큐가 점점 '복원력·a11y·노출' 같은 마감 품질로 이동. 핵심 결함(KPI 정직성·데이터손실·정확성)은 1·2라운드서 소진. 다음 라운드는 가치 체크를 더 엄격히 — 마르면 대기 모드.

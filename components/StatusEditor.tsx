@@ -14,6 +14,7 @@ export function StatusEditor({ id, status }: { id: string; status: Status }) {
   return (
     <div className="flex items-center gap-2">
       <select
+        aria-label="Collaboration status"
         value={cur}
         disabled={pending}
         onChange={(e) => {

@@ -8,7 +8,7 @@ import { getPaymentFor, getStatusHistory, type CollaborationPatch } from "@/app/
 import { type Payment, type StatusEvent } from "@/lib/types";
 import { statusLabel } from "@/lib/status-style";
 import { formatCompact, formatDate } from "@/lib/utils";
-import { CampaignBadge, CountryFlag, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
+import { CampaignBadge, CountryFlag, LegacyBadge, ManagerBadge, PlatformBadge, TierBadge } from "@/components/badges";
 import { StatusSelectCell } from "@/components/grid/StatusPill";
 import { PaymentEditor } from "@/components/PaymentEditor";
 
@@ -83,7 +83,7 @@ export function DetailPanel({ co, onClose, onEdit }: { co: CollaborationView | n
         aria-modal="true"
         aria-label="Collaboration detail"
         tabIndex={-1}
-        className={`fixed inset-y-0 right-0 z-50 flex w-[440px] max-w-[92vw] flex-col border-l border-[var(--border)] bg-[var(--panel)] shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)] outline-none transition-transform duration-200 ${
+        className={`fixed inset-y-0 right-0 z-50 flex w-[min(100vw-1.5rem,440px)] flex-col border-l border-[var(--border)] bg-[var(--panel)] shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)] outline-none transition-transform duration-200 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -95,12 +95,20 @@ export function DetailPanel({ co, onClose, onEdit }: { co: CollaborationView | n
 
 function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: () => void; onEdit: EditFn }) {
   const [events, setEvents] = useState<StatusEvent[] | null>(null);
+  const [eventsErr, setEventsErr] = useState(false);
   const [payment, setPayment] = useState<Payment | null | undefined>(undefined); // undefined=로딩, null=없음
+  const [payErr, setPayErr] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    getStatusHistory(co.id).then((e) => alive && setEvents(e));
-    getPaymentFor(co.id).then((p) => alive && setPayment(p));
+    getStatusHistory(co.id)
+      .then((e) => alive && setEvents(e))
+      .catch(() => alive && setEventsErr(true));
+    getPaymentFor(co.id)
+      .then((p) => alive && setPayment(p))
+      .catch(() => {
+        if (alive) { setPayErr(true); setPayment(null); }
+      });
     return () => {
       alive = false;
     };
@@ -125,6 +133,7 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
               <TierBadge tier={co.creator.tier} />
               <CampaignBadge type={co.campaign.type} />
               <ManagerBadge manager={co.manager} />
+              {co.creator.inLegacyList && <LegacyBadge />}
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="-mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]">
@@ -157,6 +166,7 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
             <Row label="Listed" value={formatDate(co.listedDate)} />
             <Row label="Last contact" value={formatDate(co.lastContact)} />
             <Row label="Scheduled upload" value={formatDate(co.scheduledPostDate)} />
+            {co.sourceSystem && <Row label="Source" value={co.sourceSystem === "legacy_contact_list" ? "Legacy contact list" : co.sourceSystem} />}
           </div>
         </Section>
 
@@ -172,7 +182,9 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
 
         {/* Payment — tax 분기 편집 */}
         <Section title="Payment">
-          {payment === undefined ? (
+          {payErr ? (
+            <p className="text-xs text-[var(--phase-dropped)]">Failed to load payment — reopen to retry.</p>
+          ) : payment === undefined ? (
             <p className="text-xs text-[var(--faint)]">Loading…</p>
           ) : (
             <PaymentEditor collaborationId={co.id} payment={payment ?? undefined} suggestedGross={co.contentFeeKrw} campaignType={co.campaign.type} collabStatus={co.status} />
@@ -181,7 +193,9 @@ function PanelBody({ co, onClose, onEdit }: { co: CollaborationView; onClose: ()
 
         {/* History */}
         <Section title="Status history">
-          {events === null ? (
+          {eventsErr ? (
+            <p className="text-xs text-[var(--phase-dropped)]">Failed to load history — reopen to retry.</p>
+          ) : events === null ? (
             <p className="text-xs text-[var(--faint)]">Loading…</p>
           ) : events.length ? (
             <ol className="space-y-2.5">

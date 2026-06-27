@@ -19,6 +19,7 @@ export function NavTabs() {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? "page" : undefined}
             className={`px-3.5 py-1.5 text-sm font-semibold transition-colors ${
               active
                 ? "bg-[var(--accent)] text-white"

@@ -124,6 +124,8 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
       {editError && (
         <button
           onClick={() => setEditError("")}
+          role="alert"
+          aria-live="polite"
           className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-lg border border-[var(--phase-dropped)] bg-[var(--panel)] px-4 py-2 text-xs text-[var(--phase-dropped)] shadow-lg"
         >
           {editError} · dismiss

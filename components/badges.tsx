@@ -52,3 +52,12 @@ export function ManagerBadge({ manager }: { manager: string }) {
     </span>
   );
 }
+
+// 발굴풀(legacy 컨택 리스트) 표시 — effie 요구('기존 리스트업 중복 인원 별도표시').
+export function LegacyBadge() {
+  return (
+    <span className="chip" title="From the legacy contact list (discovery pool)" style={{ color: "var(--faint)", borderColor: "var(--border-strong)" }}>
+      Legacy pool
+    </span>
+  );
+}

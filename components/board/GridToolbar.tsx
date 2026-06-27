@@ -77,7 +77,7 @@ function ColumnManager({ prefs, onChange }: { prefs: GridPrefs; onChange: (p: Gr
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-strong)] px-2.5 py-1.5 text-xs text-[var(--muted)] hover:bg-[var(--panel-2)]">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Column manager" className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-strong)] px-2.5 py-1.5 text-xs text-[var(--muted)] hover:bg-[var(--panel-2)]">
         <Columns3 size={13} /> Columns
       </button>
       {open && (

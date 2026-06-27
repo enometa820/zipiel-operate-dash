@@ -170,11 +170,21 @@ export function WorkGrid({ views, onEdit, managers, prefs, onToggleGroup, select
           }
           const row = item.row;
           const isSel = row.original.id === selectedId;
+          const co = row.original;
           return (
             <div
               key={row.id}
-              onClick={() => onSelect(row.original.id)}
-              className={`group absolute left-0 top-0 flex w-full cursor-pointer border-b border-[var(--border)] ${
+              role="button"
+              tabIndex={0}
+              aria-label={`@${co.creator.handle}, ${co.status}, ${co.manager}${co.contentFeeKrw ? `, ₩${co.contentFeeKrw.toLocaleString("en-US")}` : ""}`}
+              onClick={() => onSelect(co.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(co.id);
+                }
+              }}
+              className={`group absolute left-0 top-0 flex w-full cursor-pointer border-b border-[var(--border)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] ${
                 isSel ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--panel-2)]"
               }`}
               style={{ height: rowH, transform: `translateY(${vi.start}px)` }}

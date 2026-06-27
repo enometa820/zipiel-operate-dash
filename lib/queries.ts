@@ -68,7 +68,9 @@ async function pagedAll(
     return modify ? modify(ordered) : ordered;
   };
   const { data: first, count, error } = await build(sb.from("collaborations").select(select, { count: "exact" })).range(0, PAGE - 1);
-  if (error || !first) return [];
+  // 첫 페이지 에러는 연결 장애 신호 — []로 삼키면 조용한 빈 보드가 된다. throw해 error.tsx가 재시도 UI를 띄우게.
+  if (error) throw new Error(`collaborations fetch failed: ${error.message ?? error}`);
+  if (!first) return [];
   if (!count || count <= PAGE) return first;
   const nPages = Math.ceil(count / PAGE);
   const rest = await Promise.all(
