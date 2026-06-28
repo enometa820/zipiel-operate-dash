@@ -7,6 +7,7 @@ const TABS = [
   { href: "/", label: "Overview" },
   { href: "/board", label: "Work board" },
   { href: "/status", label: "개발 현황" },
+  { href: "/handoff", label: "인수인계" },
 ];
 
 export function NavTabs() {
