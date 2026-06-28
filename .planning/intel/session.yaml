@@ -1,22 +1,22 @@
-meta: {repo: zipiel-operate-dash, updated: 2026-06-27 KST}
-status_line: "데이터 토대 스프린트(c9c91ed) + 밤샘 자율 루프 3라운드(43155dc·1779099·c78d9c9·fcdf045) 완료·전부 Vercel 배포. 루프 산출: KPI 정직성(executedFee 게이트·unknownSource 원장)·이중언어 정합·성능(쿼리 병렬·인덱스 0012)·**paidAt 데이터손실 버그 수정**·정확성(1억 cap·NaN가드)·복원력(error.tsx·무한스피너 차단·에러표시)·**vitest 16건 신설**·a11y·PII 위생·발굴풀(legacy) 배지. 적대적 회귀검증 PASS(0건). 고가치 자율큐 소진 → 대기 모드. 남은 고가치는 전부 사용자 게이트(아래 next)."
+meta: {repo: zipiel-operate-dash, updated: 2026-06-28 KST}
+status_line: "온에어 시트 실데이터 적재 완료(onair-ingestion 우로보로스 전단계·커밋 b707438·배포). 온에어 협업 789(JP272·CN234·KR197·TW86)·content_pieces 645(성과·1/3/7일차)·크리에이터 13,093. 손실0 멱등(legacy 승격 dedup·DELETE 0·편집보존)·reconcile ALL PASS. 선행: 토대 스프린트(손실0 ETL·shipments·products)+밤샘루프 3라운드(KPI정직성·복원력·테스트·a11y)+원본 100% 추출·해석(research/04·05). 온에어 접근 해결(enometa OAuth). /status 최신화. 다음 = onair-ingestion verify 또는 analytics-layer/shipping-completion."
 facts:
-  new_channel: "C0BDVHVNBPS = effie 신설 대시보드 전용 채널(멤버 effie·대표·이용진·함대준). 기존 작업채널 C0APNDK4QKW와 별개. 06-25~26 스펙 통째 재정의."
-  research: "research/02-슬랙-대시보드-스펙-갱신-조사.md(심층조사·15상태 정본 a~o·재무·분석·정합·레퍼런스) · research/03-빌드계획-v2.md(마이그 0006~0013·로드맵 P0~P2·화면IA·§8 레퍼런스 시트·§8.1 Kangaroo·§9 크롤링 백로그). 멀티에이전트 워크플로우로 5렌즈+검증 종합."
-  data_shift: "정본 이동 — 옛 컨택리스트(1oZrsp5..., 발굴풀 격하·이미 14k DB적재) → 새 온에어 시트(10ymVk..., 401 접근필요·상태·계약비용·CPV·성과·제품) + 배송 접수용(1GlDP..., 링크공개·EMS 371송장·물류비 ~253만원)."
-  spec_plan: ".enometa/etl-safe-incremental-logistics/ spec.md(9칸)·plan.md(AC 7묶음·leaf 20) 작성·셀프리뷰 통과. 토대만 스코프(사용자 결정): ETL 전량삭제→멱등 upsert·출처태깅·shipments/products COGS·상태라벨 정정. 작업자입력·대시보드는 다음 스프린트."
-  bp: "references/bp-anti-bot-scraping-rate-limits.md 신설(5축 67원칙·검증14·확인필요~10) + bp-pattern.md §3.39. 핵심=임계 몰라도 안걸리는 구조(버너계정·증분체크포인트·페이싱). zipiel-instgram baseline 갭=백오프 선형무지터·sec-ch-ua/Accept-Language 미전송."
-  references: "위마케팅 틱톡 대시보드(1S71xU.., Analytics IA 청사진)·GM1 인플루언서시트(13FP.., 티어/deal_type 우리enum과 다름)·Kangaroo guide.hypercape.com(대표지인 제작, 캠페인중심 4탭 IA=우리 P0-C 검증)."
-  slack: "읽기 = ../zipiel-cs-demo/.claude/skills/zipiel-slack/slack.py. 새 채널 C0BDVHVNBPS. 토큰 vault, 발송 --dry-run 게이트."
-  git: "본 세션 산출 commit 예정(research/02·03·spec·plan·session·decisions). BP·memory는 ~/.claude(별도 backup-claude)."
+  new_channel: "C0BDVHVNBPS = effie 대시보드 전용 채널(effie·대표·이용진·함대준). 06-25~26 스펙 재정의. 읽기=../zipiel-cs-demo/.claude/skills/zipiel-slack/slack.py."
+  onair_access: "온에어 시트(10ymVk) 접근 해결 — vault oauth-enometa-token.json(enometa@theframeless.co, drive/sheets readonly·refresh_token 자동갱신)로 Sheets API 읽기, effie 공유 불필요. 정본=memory onair-sheet-access. gid 정정: 국가별 온에어 탭(KR 1526933782·CN 1593164077·JP 268882564·TW 1121208463·SG 1985580167) + 성과분석 탭(이미 작성) + 컨택/온에어_TT,IG,YT."
+  extraction: "원본 100% 추출·해석(research/04 매니페스트·05 백로그·화면/함수 설계). 온에어 35탭·배송 10탭·위마케팅 16·GM1 7·인수인계 슬라이드 전수. 원본 CSV=gitignore된 research/{onair,ship,ref}-snapshot/(PII). 재추출=scripts/extract_sheets.py."
+  data_state: "라이브 Supabase(seeding-ops): collaborations 14,549(legacy 발굴풀 13,760 + onair_2026 789)·creators 13,093·content_pieces 645·shipments 371(글로벌만, 국내 697 미적재)·products 3·payments 0. 마이그 0001~0015 적용."
+  sprints: ".enometa/ — etl-safe-incremental-logistics(완료)·onair-ingestion(완료). 둘 다 spec·plan·execute·verify(toedation만 verify완) 산출."
+  references: "위마케팅 대시보드(1S71xU, RAW→가공DB→대시보드 청사진)·GM1(13FP, 온에어에 내장됨)·Kangaroo brand.hypercape.com+guide.hypercape.com(대표지인 제작). research/05 §E 화면매핑."
+  git: "본 세션 다수 커밋·push 완료(토대 c9c91ed·루프 43155dc~fcdf045·접근 201e65c·추출 1c4ab79·온에어 b707438). BP·memory는 ~/.claude(backup-claude 별도)."
 next:
-  - {task: "[완료 2026-06-27] etl-safe-incremental-logistics 우로보로스 전단계 통과·커밋 c9c91ed·push·배포. 마이그 0006~0011 라이브 적용, ETL 손실0 멱등 재설계, shipments(371송장·253만)·products(COGS) 적재, On Hold→Payment Pending, /status 노출. reconcile ALL PASS·적대적 검토 통과.", done: true}
-  - {task: "[완료 2026-06-27] 밤샘 자율 루프 3라운드(6렌즈 워크플로우 발굴→구현→검증→배포). 28건: KPI 정직성·이중언어·성능·인덱스·paidAt버그·NaN가드·error.tsx·무한스피너·vitest16·a11y·PII위생·legacy배지. 적대적 회귀검증 PASS. LOG=work/2026-06-27/dashboard-loop/LOG.md.", done: true}
-  - {task: "[사용자 게이트 — 루프 승인큐] 우선순위 결정 필요: (1) operator-inline-entry spec(작업자 새행 생성 UX, dedup·필드 결정 필요) (2) 모바일/반응형 전면(제품 결정) (3) RLS products/shipments read 정책(라이브, service key로 현재 동작) (4) to_date 달력검증+ETL 재적재(데이터정정) (5) pytest ETL(main-guard 재구조화) (6) invoice↔shipment JOIN 구조.", done: false}
-  - {task: "effie 차단 해소 요청: 온에어 시트(10ymVk) 공유(enometa@theframeless.co/서비스계정) + 캠페인 마스터 확정(브랜드×국가×ded/int·목표·마감·PIC). 둘 다 P1-E·P0-C 블로커. analytics-reporting-layer(시계열·달성률·인게이지먼트)의 선행.", done: false}
-  - {task: "백로그: 크롤링(crawler-result-ingestion·crawl-request-trigger, source_system='crawler') + 공식API 하이브리드(발굴=크롤러, 보강=Business Discovery). zipiel-instgram 갭 패치(버너계정·풀지터백오프·헤더3개). research/03 §9.", done: false}
+  - {task: "[완료 2026-06-28] onair-ingestion 우로보로스(spec·plan·execute). 온에어 5탭+드랍홀드 → onair_2026 협업789·content_pieces645 손실0 적재. 마이그 0013~0015. reconcile ALL PASS. verify 단계는 미실행(권장).", done: true}
+  - {task: "onair-ingestion verify (3-Phase 적대적 격리) — 라이브 14k+ 건드린 스프린트라 권장. 특히 승격 dedup 이중계상·인앱편집 보존·PII 누수·additive 확인.", done: false}
+  - {task: "다음 스프린트 후보(research/05 §G): (1) analytics-layer — 성과분석 시트 재현 화면(일/주/월 콘텐츠수·달성률·인게이지먼트%, 데이터 적재됨) (2) shipping-completion — 국내송장 697 적재+송장↔협업 매칭 (3) campaign-citizenship(brand×country×ded/int·역산, effie 캠페인마스터 필요).", done: false}
+  - {task: "알려진 한계(후속): ETL 승격이 status_history 생성→재실행 시 protected로 status 동결. 지속 재동기화는 app-vs-ETL 마커 필요(트리거 changed_by 구분). 초기 적재엔 무영향.", done: false}
+  - {task: "사용자 게이트(외부/정책): 캠페인 마스터 정본(effie)·다퍼/에이전시 금액(대표)·오프라인(매장형/서울링크) 스코프·통화환산 정책. + 루프 승인큐(operator-inline-entry·모바일전면·RLS정책·to_date재적재·pytest).", done: false}
 cautions:
-  - "PII 절대선: 배송 CSV(scratchpad ship-2081447250.csv)·슬랙 코퍼스·user/는 repo 커밋 금지. shipments 적재 시 수취인명·전화·주소 컬럼 미적재(송장·요금·국가·제품·중량만)."
-  - "라이브 DB(seeding-ops 14,110협업) 변경은 additive only(ADD COLUMN·CREATE TABLE·enum rename). blanket DELETE/TRUNCATE 재등장 즉시 중단. ETL 재실행 전후 행수·status_history 불변 검증."
-  - "상태머신 정합: 코드 'On Hold'는 KO '지급 대기'에 이미 매핑(0003 오개명) — 0006으로 EN을 'Payment Pending'으로 환원. effie 15상태(a~o)와 1:1 확정. Drop 자동규칙(1개월 무회신)은 미구현(P2)."
-  - "taskkill //IM node.exe 금지 — 포트 PID만. 워크플로우 합성 에이전트가 긴 출력에서 API 스톨한 사례 있음(메인루프 직접 작성 또는 journal 추출로 우회)."
+  - "PII 절대선: 온에어 email·이름·주소, 배송 PII, 원본 CSV(research/*-snapshot/)·슬랙 코퍼스·user/는 커밋 금지(gitignore 확인). email은 DB 저장하되 앱 SELECT 미전송."
+  - "라이브 DB 변경 additive only(ADD COLUMN·CREATE TABLE·enum rename). blanket DELETE/TRUNCATE 재등장 즉시 중단. ETL 재실행 전후 행수·status_history 불변 검증(reconcile.py snapshot→재실행→check)."
+  - "온에어 적재 재실행: external_ref 멱등. 승격은 (handle,platform) legacy 일치 시 onair_2026으로(이중계상 0). 인앱편집(status_history changed_by!=system) status는 ETL 미기재."
+  - "온에어 읽기: enometa OAuth(vault). PostgREST on_conflict은 partial unique 인덱스 못 씀(full unique 필요, 0015 교훈). 시트 탭 컬럼 위치 상이→헤더 이름 매핑."
+  - "taskkill //IM node.exe 금지(포트 PID만). 워크플로우 합성 에이전트 긴 출력 API 스톨 전례→메인 직접 또는 journal 추출."
