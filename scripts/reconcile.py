@@ -47,6 +47,7 @@ def take_snapshot():
         "collaborations": count("collaborations"),
         "creators": count("creators"),
         "status_history": count("collaboration_status_history"),
+        "content_pieces": count("content_pieces"),
     }
     # capture one manager-edited status (if any) to assert preservation across re-runs
     edited = get("/collaboration_status_history?select=collaboration_id&changed_by=neq.system&limit=1")
@@ -109,11 +110,21 @@ def run_checks(csv_path):
     results.append(("'On Hold' 잔존 0 (→Payment Pending)", on_hold <= 0,
                     f"On Hold 쿼리={on_hold}(<=0 정상), Payment Pending={pay_pending}"))
 
+    # 4b. 온에어 적재(onair-ingestion AC-8)
+    onair_collab = count("collaborations", "&source_system=eq.onair_2026")
+    cp_total = count("content_pieces")
+    cp_onair = count("content_pieces", "&source_system=eq.onair_2026")
+    results.append(("온에어 협업 적재(onair_2026)", onair_collab > 0, f"{onair_collab}건"))
+    results.append(("content_pieces 적재", cp_total > 0, f"총 {cp_total} / onair {cp_onair}"))
+    # content_pieces 에러문자열 잔존 0 (metrics_d1/d3/d7 raw에 ERROR/#REF 정제 확인)
+    dirty = get("/content_pieces?select=id&or=(metrics_d1.ilike.*ERROR*,metrics_d1.ilike.*%23REF*,metrics_d3.ilike.*ERROR*,metrics_d7.ilike.*ERROR*)&limit=5")
+    results.append(("content_pieces 에러문자열 정제(잔존 0)", len(dirty) == 0, f"잔존 {len(dirty)}"))
+
     # 5. AC-6.2 — diff vs pre-apply snapshot (re-run safety)
     if os.path.exists(SNAP):
         snap = json.load(open(SNAP))
         tables = {"collaborations": "collaborations", "creators": "creators",
-                  "status_history": "collaboration_status_history"}
+                  "status_history": "collaboration_status_history", "content_pieces": "content_pieces"}
         for key, table in tables.items():
             now = count(table)
             base = snap.get(key)

@@ -128,6 +128,33 @@ export interface Collaboration {
   notes?: string;
   sourceSystem?: string; // provenance
   externalRef?: string; // source natural key (e.g. legacy:{handle}:{platform})
+  campaignLabel?: string; // 온에어 Campaign 원문 텍스트(1차시민화 전 보존)
+  partnershipCode?: string;
+  currency?: string;
+}
+
+export interface ContentPiece {
+  id: string;
+  collaborationId: string;
+  postUrl?: string;
+  originalUrl?: string;
+  category?: string; // 제품
+  contentType?: string;
+  concept?: string;
+  postedAt?: string;
+  scheduledPostDate?: string;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  reposts?: number;
+  saves?: number;
+  shares?: number;
+  quotes?: number;
+  metricsD1?: string; // raw scrape (day 1/3/7) — 나중 파싱
+  metricsD3?: string;
+  metricsD7?: string;
+  sourceSystem?: string;
+  externalRef?: string;
 }
 
 export interface Product {
