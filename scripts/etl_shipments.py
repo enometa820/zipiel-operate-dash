@@ -1,22 +1,25 @@
-# ETL: shipping waybill sheet -> shipments table. (AC-5)
-# Source = EMS waybill CSV export (gitignored scratchpad; PII, repo 미포함).
-# Idempotent upsert by invoice_no. Dedup multi-product rows of one waybill.
-# carrier label normalization. 'H&H' in country column -> brand_tag (non-country).
-# PII NEVER loaded: 발송인명·수취인명·전화·우편번호·주소 columns are skipped entirely.
+# ETL: shipping waybill sheets -> shipments table + 송장↔협업 매칭.
+# 소스 = 글로벌 EMS export(고정 인덱스) + 국내 송장 시트(헤더 매핑). PII·gitignore, repo 미포함.
+# 멱등 upsert by invoice_no. 한 송장 다상품(합포) dedup. carrier 정규화.
+# 매칭: collaborations.tracking_number ↔ shipments.invoice_no 직접 조인 → collaborations.invoice_no(FK)·shipments.match_status='matched'.
+# match_status는 upsert payload에서 제외 → 재적재해도 기존 매칭 보존(손실0).
+# PII NEVER loaded: 수취인명·전화·우편번호·주소 컬럼 전면 제외.
 #
-# Usage: python scripts/etl_shipments.py [path/to/ship.csv]
-#   default path = the known scratchpad export. Override with argv[1].
+# Usage: python scripts/etl_shipments.py [global_ship.csv]
+#   global CSV = argv[1] 또는 기본 scratchpad(없으면 글로벌 skip, 이미 적재됨). 국내 = research snapshot 고정.
 import csv, json, re, sys, io, os, socket, urllib.request, urllib.error
 from collections import OrderedDict, Counter
 
-socket.setdefaulttimeout(30)  # 네트워크 블립 시 무한 행 방지
+socket.setdefaulttimeout(30)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = "C:/Projects/zipiel-operate-dash"
-DEFAULT_CSV = ("C:/Users/sickkiya/AppData/Local/Temp/claude/"
-               "C--Projects-zipiel-operate-dash/1563e266-77f5-4a2b-b3f6-99dd62b3f291/"
-               "scratchpad/ship-2081447250.csv")
-CSV_PATH = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CSV
-SOURCE_SHEET_ID = "1GlDP_shipping_receipt"  # [은정님,H&H] 배송 접수용 (link-public)
+GLOBAL_CSV = sys.argv[1] if len(sys.argv) > 1 else (
+    "C:/Users/sickkiya/AppData/Local/Temp/claude/"
+    "C--Projects-zipiel-operate-dash/1563e266-77f5-4a2b-b3f6-99dd62b3f291/"
+    "scratchpad/ship-2081447250.csv")
+DOMESTIC_CSV = f"{ROOT}/research/ship-snapshot/_H_H__국내_송장번호__gid1579019407.csv"
+GLOBAL_SHEET_ID = "1GlDP_shipping_receipt"  # [은정님,H&H] 배송 접수용
+DOMESTIC_SHEET_ID = "1GlDP_domestic_1579019407"  # 국내 송장 시트
 
 env = {}
 for line in open(f"{ROOT}/.env.local", encoding="utf-8"):
@@ -36,12 +39,22 @@ def api(method, path, body=None, prefer=None):
     except urllib.error.HTTPError as e:
         print("HTTP", e.code, e.read().decode()[:400]); raise
 
+def api_paged(path):
+    out, step, i = [], 1000, 0
+    while True:
+        sep = "&" if "?" in path else "?"
+        chunk = api("GET", f"{path}{sep}limit={step}&offset={i}")
+        if not chunk: break
+        out.extend(chunk)
+        if len(chunk) < step: break
+        i += step
+    return out
+
 def to_int(x):
     x = re.sub(r"[^\d]", "", (x or ""))
-    if not x:
-        return None
+    if not x: return None
     n = int(x)
-    return n if n < 100_000_000 else None  # 병합셀·오염 이상치 거름(etl_seeding 일치)
+    return n if n < 100_000_000 else None
 
 def to_date(x):
     m = re.search(r"(20\d{2})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})", (x or ""))
@@ -58,70 +71,97 @@ def norm_carrier(s):
     if "한중해상" in s: return "한중해상"
     if low == "ems": return "EMS"
     if low.replace("-", "") == "seaexpress": return "SeaExpress"
-    return s  # unknown label preserved (no fabrication)
+    return s  # 국내 "전체택배" 등 원라벨 보존(날조 0)
 
 ISO2 = {"CN", "TW", "KR", "JP", "MY", "SG", "HK", "US"}
 
-if not os.path.exists(CSV_PATH):
-    print(f"배송 CSV 없음: {CSV_PATH}\n  argv[1]로 경로를 지정하세요."); sys.exit(1)
-
-rows = list(csv.reader(open(CSV_PATH, encoding="utf-8")))
-hdr = rows[0]
-data = [r for r in rows[1:] if any(c.strip() for c in r)]
-
 def g(r, i): return r[i].strip() if i < len(r) else ""
 
-# column indices (fixed layout of the EMS export)
-C = dict(req_date=1, carrier=2, invoice=3, status=4, proc_date=5,
-         weight=6, fee=7, country=11, customs=(20, 21, 22, 23))
+def read_csv(path):
+    rows = list(csv.reader(open(path, encoding="utf-8")))
+    return [r for r in rows[1:] if any(c.strip() for c in r)]
 
-ship = OrderedDict()  # invoice_no -> payload (dedup: first occurrence wins)
-skipped_no_invoice = 0
-for r in data:
-    inv = g(r, C["invoice"])
-    if not inv:
-        skipped_no_invoice += 1
-        continue
-    if inv in ship:
-        continue  # multi-product line of the same waybill — already counted
-    country_raw = g(r, C["country"]).upper()
-    brand_tag = None
-    country = None
-    if country_raw == "H&H":
-        brand_tag = "H&H"
-    elif country_raw in ISO2:
-        country = country_raw
-    customs = next((g(r, i) for i in C["customs"] if g(r, i)), None)
-    ship[inv] = {
-        "invoice_no": inv,
-        "carrier": norm_carrier(g(r, C["carrier"])),
-        "request_date": to_date(g(r, C["req_date"])),
-        "processed_date": to_date(g(r, C["proc_date"])),
-        "weight_g": to_int(g(r, C["weight"])),
-        "fee_krw": to_int(g(r, C["fee"])),
-        "country_code": country,
-        "brand_tag": brand_tag,
-        "customs_no": customs,
-        "delivery_status": g(r, C["status"]) or None,
-        "source_system": "ship_sheet",
-        "source_sheet_id": SOURCE_SHEET_ID,
-        "source_row": to_int(g(r, 0)),
-        "match_status": "unmatched",
-    }
+# --- 글로벌 EMS (고정 인덱스) ---
+GC = dict(req_date=1, carrier=2, invoice=3, status=4, proc_date=5, weight=6, fee=7, country=11, customs=(20, 21, 22, 23))
 
-payload = list(ship.values())
-fee_total = sum(s["fee_krw"] or 0 for s in payload)
-fee_excl_hh = sum((s["fee_krw"] or 0) for s in payload if s["brand_tag"] != "H&H")
+def build_global(data, ship):
+    skipped = 0
+    for r in data:
+        inv = g(r, GC["invoice"])
+        if not inv: skipped += 1; continue
+        if inv in ship: continue
+        cr = g(r, GC["country"]).upper()
+        brand_tag = "H&H" if cr == "H&H" else None
+        country = cr if cr in ISO2 else None
+        customs = next((g(r, i) for i in GC["customs"] if g(r, i)), None)
+        ship[inv] = {
+            "invoice_no": inv, "carrier": norm_carrier(g(r, GC["carrier"])),
+            "request_date": to_date(g(r, GC["req_date"])), "processed_date": to_date(g(r, GC["proc_date"])),
+            "weight_g": to_int(g(r, GC["weight"])), "fee_krw": to_int(g(r, GC["fee"])),
+            "country_code": country, "brand_tag": brand_tag, "customs_no": customs,
+            "delivery_status": g(r, GC["status"]) or None,
+            "source_system": "ship_sheet", "source_sheet_id": GLOBAL_SHEET_ID, "source_row": to_int(g(r, 0)),
+        }
+    return skipped
 
-# idempotent upsert by invoice_no PK
+# --- 국내 송장 (헤더 매핑) — 배송비 컬럼 없음→fee_krw=null. PII 제외. ---
+DC = dict(invoice=33, carrier=34, proc_date=32, req_date=30, weight=50, status=4)
+
+def build_domestic(data, ship):
+    skipped = 0
+    for r in data:
+        inv = g(r, DC["invoice"])
+        if not inv: skipped += 1; continue
+        if inv in ship: continue  # 합포(한 송장 다상품) first-wins
+        ship[inv] = {
+            "invoice_no": inv, "carrier": norm_carrier(g(r, DC["carrier"])),
+            "request_date": to_date(g(r, DC["req_date"])), "processed_date": to_date(g(r, DC["proc_date"])),
+            "weight_g": to_int(g(r, DC["weight"])), "fee_krw": None,  # 국내 CSV에 배송비 컬럼 없음(상품원가 위장 금지)
+            "country_code": "KR", "brand_tag": None, "customs_no": None,
+            "delivery_status": g(r, DC["status"]) or None,
+            "source_system": "ship_sheet", "source_sheet_id": DOMESTIC_SHEET_ID, "source_row": to_int(g(r, 0)),
+        }
+    return skipped
+
+# --- 적재 ---
+ship = OrderedDict()
+g_skip = d_skip = 0
+g_n = d_n = 0
+if os.path.exists(GLOBAL_CSV):
+    before = len(ship); g_skip = build_global(read_csv(GLOBAL_CSV), ship); g_n = len(ship) - before
+    print(f"글로벌 적재: {g_n}건 (빈송장 {g_skip} 생략)")
+else:
+    print(f"글로벌 CSV 없음(skip, 이미 적재됨): {GLOBAL_CSV}")
+if os.path.exists(DOMESTIC_CSV):
+    before = len(ship); d_skip = build_domestic(read_csv(DOMESTIC_CSV), ship); d_n = len(ship) - before
+    print(f"국내 적재: {d_n}건 (빈송장 {d_skip} 생략, 합포 dedup)")
+else:
+    print(f"국내 CSV 없음: {DOMESTIC_CSV}"); sys.exit(1)
+
+payload = list(ship.values())  # match_status 미포함 → 신규는 DB default 'unmatched', 기존 매칭 보존
 for i in range(0, len(payload), 500):
-    api("POST", "/shipments?on_conflict=invoice_no", payload[i:i+500],
-        prefer="resolution=merge-duplicates,return=minimal")
+    api("POST", "/shipments?on_conflict=invoice_no", payload[i:i+500], prefer="resolution=merge-duplicates,return=minimal")
+print(f"upsert: {len(payload)}건 (글로벌 {g_n}+국내 {d_n}). carrier:", dict(Counter(s["carrier"] for s in payload).most_common(6)))
+print("국가 분포:", dict(Counter(s["country_code"] for s in payload).most_common()))
+print("PII(수취인명·전화·우편번호·주소) 미적재 확인")
 
-print(f"고유 송장: {len(payload)}건 (빈 송장행 {skipped_no_invoice} 생략)")
-print(f"물류비 합(전체): {fee_total:,}원  /  H&H 제외: {fee_excl_hh:,}원")
-print("carrier 분포:", dict(Counter(s["carrier"] for s in payload)))
-print("국가 분포:", dict(Counter(s["country_code"] for s in payload)))
-print(f"brand_tag H&H: {sum(1 for s in payload if s['brand_tag']=='H&H')}건")
-print("PII(수취인명·전화·우편번호·주소) 미적재 확인 — 송장·요금·국가·중량·제품만")
-print("배송 적재 완료 (upsert by invoice_no, 멱등)")
+# --- 매칭: collaborations.tracking_number ↔ shipments.invoice_no ---
+shp_inv = {s["invoice_no"].strip() for s in api_paged("/shipments?select=invoice_no")}
+cols = api_paged("/collaborations?select=id,tracking_number,invoice_no&tracking_number=not.is.null")
+linked = 0
+already = 0
+matched_invoices = set()
+for c in cols:
+    tr = (c.get("tracking_number") or "").strip()
+    if tr not in shp_inv: continue  # 12자리·오염 자연 필터(shipments에 없으면 skip)
+    matched_invoices.add(tr)
+    if c.get("invoice_no") == tr:
+        already += 1; continue  # 이미 매칭(멱등)
+    api("PATCH", f"/collaborations?id=eq.{c['id']}", {"invoice_no": tr}, prefer="return=minimal")
+    linked += 1
+# shipments.match_status='matched' (연결된 송장만, 배치)
+if matched_invoices:
+    inv_list = ",".join(f'"{i}"' for i in matched_invoices)
+    api("PATCH", f"/shipments?invoice_no=in.({inv_list})", {"match_status": "matched"}, prefer="return=minimal")
+print(f"매칭: 신규연결 {linked} · 기존(멱등) {already} · 총 matched 송장 {len(matched_invoices)}")
+print("배송 적재·매칭 완료 (DELETE/TRUNCATE 0, invoice_no 멱등, match_status 보존)")

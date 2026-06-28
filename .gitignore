@@ -75,3 +75,4 @@ supabase/.temp/
 supabase/.branches/
 
 .vercel
+__pycache__/

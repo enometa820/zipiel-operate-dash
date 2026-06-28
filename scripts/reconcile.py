@@ -48,6 +48,7 @@ def take_snapshot():
         "creators": count("creators"),
         "status_history": count("collaboration_status_history"),
         "content_pieces": count("content_pieces"),
+        "shipments": count("shipments", col="invoice_no"),
     }
     # capture one manager-edited status (if any) to assert preservation across re-runs
     edited = get("/collaboration_status_history?select=collaboration_id&changed_by=neq.system&limit=1")
@@ -75,18 +76,32 @@ def csv_figures(path):
 def run_checks(csv_path):
     results = []  # (label, ok, detail)
 
-    # 1. shipments vs shipping CSV source
+    # 1. shipments vs shipping CSV source (글로벌 송장만 — 국내 적재로 깨지지 않게 source_sheet_id 한정)
     fig = csv_figures(csv_path)
     db_ship = count("shipments", col="invoice_no")
-    db_fee_rows = get("/shipments?select=fee_krw")
+    db_ship_global = count("shipments", "&source_sheet_id=eq.1GlDP_shipping_receipt", col="invoice_no")
+    db_fee_rows = get("/shipments?select=fee_krw&source_sheet_id=eq.1GlDP_shipping_receipt")
     db_fee = sum(int(x["fee_krw"] or 0) for x in db_fee_rows)
     if fig:
-        results.append(("배송 송장수 CSV==DB", fig["unique_invoices"] == db_ship,
-                        f"CSV {fig['unique_invoices']} / DB {db_ship}"))
-        results.append(("물류비 합 CSV==DB", fig["fee_sum"] == db_fee,
+        results.append(("글로벌 송장수 CSV==DB", fig["unique_invoices"] == db_ship_global,
+                        f"CSV {fig['unique_invoices']} / DB(글로벌) {db_ship_global} / 전체 {db_ship}"))
+        results.append(("글로벌 물류비 합 CSV==DB", fig["fee_sum"] == db_fee,
                         f"CSV {fig['fee_sum']:,} / DB {db_fee:,}"))
     else:
         results.append(("배송 CSV 접근", False, f"CSV 없음: {csv_path} (DB shipments={db_ship})"))
+
+    # 1b. shipping-completion: 국내 적재 + 송장↔협업 매칭 (AC-3)
+    db_ship_dom = count("shipments", "&source_sheet_id=eq.1GlDP_domestic_1579019407", col="invoice_no")
+    results.append(("국내 송장 적재(source_sheet_id=domestic)", db_ship_dom >= 300, f"{db_ship_dom}건 (기대 ≈398)"))
+    matched = count("shipments", "&match_status=eq.matched", col="invoice_no")
+    col_inv = count("collaborations", "&invoice_no=not.is.null")
+    # N협업:1송장 가능(한 송장으로 여러 협업) → col_inv >= matched. 하한 200으로 회귀(매칭 급감) 검출.
+    results.append(("송장↔협업 매칭(matched 송장·연결 협업)", matched >= 200 and col_inv >= matched,
+                    f"shipments matched {matched} / collaborations invoice_no {col_inv} (N:1, 기대 ≈278/282)"))
+    # shipments PII 컬럼 0 (스키마에 수취인명·전화·주소 부재)
+    sh_cols = list((get("/shipments?select=*&limit=1") or [{}])[0].keys())
+    sh_pii = [c for c in sh_cols if any(p in c.lower() for p in ("name", "phone", "addr", "이름", "주소", "전화", "우편"))]
+    results.append(("shipments PII 컬럼 0", len(sh_pii) == 0, f"PII컬럼 {sh_pii or '없음'}"))
 
     # 2. source_system fill rate = 100%
     col_total = count("collaborations")
@@ -136,9 +151,10 @@ def run_checks(csv_path):
     if os.path.exists(SNAP):
         snap = json.load(open(SNAP))
         tables = {"collaborations": "collaborations", "creators": "creators",
-                  "status_history": "collaboration_status_history", "content_pieces": "content_pieces"}
+                  "status_history": "collaboration_status_history", "content_pieces": "content_pieces",
+                  "shipments": "shipments"}
         for key, table in tables.items():
-            now = count(table)
+            now = count(table, col="invoice_no" if table == "shipments" else "id")
             base = snap.get(key)
             results.append((f"[재실행안전] {key} 행수 불변", base is not None and now == base,
                             f"전 {base} / 후 {now}"))
