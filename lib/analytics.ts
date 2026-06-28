@@ -23,6 +23,16 @@ export interface AnalyticsRecord {
   shares?: number | null;
   country?: string | null;
   tier?: string | null;
+  // 1/3/7일차 추이(content-timeseries)
+  viewsD1?: number | null;
+  viewsD3?: number | null;
+  viewsD7?: number | null;
+  likesD1?: number | null;
+  likesD3?: number | null;
+  likesD7?: number | null;
+  commentsD1?: number | null;
+  commentsD3?: number | null;
+  commentsD7?: number | null;
 }
 
 // 카테고리 문자열 → 제품 열. 단일=해당 제품, "all"=All, 복수=Mixed, 빈=Unknown. 한/영 토큰 대응.
@@ -126,6 +136,20 @@ export interface AnalyticsSummary {
   engagementTotal: number;
   activeCountries: number;
 }
+export interface TimePoint {
+  median: number | null;
+  n: number;
+}
+export interface MetricTimeseries {
+  d1: TimePoint;
+  d3: TimePoint;
+  d7: TimePoint;
+}
+export interface TimeseriesData {
+  views: MetricTimeseries;
+  likes: MetricTimeseries;
+  comments: MetricTimeseries;
+}
 export interface AnalyticsData {
   grain: Grain;
   country: string; // "all" 또는 특정 국가
@@ -135,7 +159,15 @@ export interface AnalyticsData {
   engagement: EngagementData;
   countryProduct: CountryProductData;
   countryTier: CountryTierData;
+  timeseries: TimeseriesData;
   summary: AnalyticsSummary;
+}
+
+function median(arr: number[]): number | null {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 }
 
 const sortByCol = (cols: readonly string[]) => (a: string, b: string) => cols.indexOf(a) - cols.indexOf(b);
@@ -285,5 +317,19 @@ export function aggregate(records: AnalyticsRecord[], grain: Grain, countryFilte
     activeCountries: matrix.buckets.length ? new Set(records.filter((r) => r.postedAt && inFilter(r)).map((r) => r.country)).size : 0,
   };
 
-  return { grain, country: countryFilter, countriesAvailable, matrix, achievement, engagement, countryProduct, countryTier, summary };
+  // --- 1/3/7일차 추이(필터 적용, 데이터 있는 것만·n) ---
+  const tsPick = (key: keyof AnalyticsRecord): TimePoint => {
+    const v = records.filter(inFilter).map((r) => r[key]).filter((x): x is number => typeof x === "number");
+    return { median: median(v), n: v.length };
+  };
+  const tsField = (d1: keyof AnalyticsRecord, d3: keyof AnalyticsRecord, d7: keyof AnalyticsRecord): MetricTimeseries => ({
+    d1: tsPick(d1), d3: tsPick(d3), d7: tsPick(d7),
+  });
+  const timeseries: TimeseriesData = {
+    views: tsField("viewsD1", "viewsD3", "viewsD7"),
+    likes: tsField("likesD1", "likesD3", "likesD7"),
+    comments: tsField("commentsD1", "commentsD3", "commentsD7"),
+  };
+
+  return { grain, country: countryFilter, countriesAvailable, matrix, achievement, engagement, countryProduct, countryTier, timeseries, summary };
 }

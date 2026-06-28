@@ -143,6 +143,12 @@ def run_checks(csv_path):
     cp_cols = list((get("/content_pieces?select=*&limit=1") or [{}])[0].keys())
     pii_cols = [c for c in cp_cols if any(p in c.lower() for p in ("email", "phone", "address", "이름", "주소", "전화"))]
     results.append(("content_pieces PII 컬럼 0", len(pii_cols) == 0, f"PII컬럼 {pii_cols or '없음'}"))
+    # content-timeseries: 1/3/7일차 파싱 채움(likes_d1은 raw d1과 동수여야 — 파싱 회귀 검출)
+    ld1 = count("content_pieces", "&likes_d1=not.is.null")
+    vd1 = count("content_pieces", "&views_d1=not.is.null")
+    vd3 = count("content_pieces", "&views_d3=not.is.null")
+    results.append(("1/3/7일차 파싱 채움(likes_d1 raw 대비)", ld1 >= 300, f"likes_d1 {ld1} / views_d1 {vd1} / views_d3 {vd3}"))
+
     # content_pieces 에러문자열 잔존 0 (metrics_d1/d3/d7 raw에 ERROR/#REF 정제 확인)
     dirty = get("/content_pieces?select=id&or=(metrics_d1.ilike.*ERROR*,metrics_d1.ilike.*%23REF*,metrics_d3.ilike.*ERROR*,metrics_d7.ilike.*ERROR*)&limit=5")
     results.append(("content_pieces 에러문자열 정제(잔존 0)", len(dirty) == 0, f"잔존 {len(dirty)}"))

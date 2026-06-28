@@ -1,6 +1,6 @@
 import { NavTabs } from "@/components/NavTabs";
 import { fetchAnalytics } from "@/lib/queries";
-import { GRAINS, type Grain } from "@/lib/analytics";
+import { GRAINS, type Grain, type MetricTimeseries } from "@/lib/analytics";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +63,17 @@ export default async function AnalyticsPage({
         </section>
       ) : (
         <>
+          {/* Timeseries: 1/3/7-day growth */}
+          <section className="card p-5 mb-4">
+            <h2 className="text-sm font-semibold mb-1">Growth · day 1 / 3 / 7</h2>
+            <p className="text-[11px] text-[var(--faint)] mb-3">Median per post, only posts with scraped data (n)</p>
+            <div className="grid md:grid-cols-3 gap-4">
+              {(["views", "likes", "comments"] as const).map((metric) => (
+                <TsCol key={metric} label={metric} ts={a.timeseries[metric]} />
+              ))}
+            </div>
+          </section>
+
           {/* Matrix: period × product */}
           <section className="card p-5 mb-4 overflow-x-auto">
             <h2 className="text-sm font-semibold mb-3">Output matrix · {GRAIN_LABEL[grain]} × product</h2>
@@ -246,4 +257,32 @@ function Row({ label, barPct, value, color }: { label: string; barPct: number; v
 
 function Empty({ note = "No data" }: { note?: string }) {
   return <p className="text-xs text-[var(--faint)]">{note}</p>;
+}
+
+function TsCol({ label, ts }: { label: string; ts: MetricTimeseries }) {
+  const pts = [["D1", ts.d1], ["D3", ts.d3], ["D7", ts.d7]] as const;
+  const max = Math.max(...pts.map(([, p]) => p.median ?? 0), 1);
+  const hasData = pts.some(([, p]) => p.n > 0);
+  return (
+    <div>
+      <div className="text-xs font-semibold text-[var(--muted)] mb-2 capitalize">{label}</div>
+      {hasData ? (
+        <div className="space-y-1.5">
+          {pts.map(([d, p]) => (
+            <div key={d} className="flex items-center gap-2 text-xs">
+              <span className="w-7 shrink-0 font-medium">{d}</span>
+              <div className="flex-1 h-4 rounded bg-[var(--panel-2)] overflow-hidden">
+                <div className="h-full rounded" style={{ width: `${((p.median ?? 0) / max) * 100}%`, background: "var(--accent)", minWidth: p.median ? 2 : 0 }} />
+              </div>
+              <span className="w-24 text-right tabular-nums text-[var(--muted)]">
+                {p.median == null ? "—" : p.median.toLocaleString()} <span className="text-[var(--faint)]">n={p.n}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty note="No scraped data" />
+      )}
+    </div>
+  );
 }

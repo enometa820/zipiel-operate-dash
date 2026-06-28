@@ -332,6 +332,17 @@ for r in records:
 print(f"협업: 승격 {promoted} · 신규 {inserted} · 갱신(재실행) {updated} · 인앱편집 status 보존 {skipped_status}")
 
 # --- content_pieces upsert (external_ref 멱등) ---
+# 1/3/7일차 raw 블롭("재생: N\n좋아요: N\n댓글: N") 파서 — lib/metrics.ts LABEL_MAP 동일(정본=TS). 파싱 실패=부재(날조 0).
+MLABEL = {"재생": "views", "조회": "views", "조회수": "views", "좋아요": "likes", "댓글": "comments",
+          "북마크": "saves", "저장": "saves", "리포스트": "reposts", "공유": "shares", "인용": "quotes", "팔로우": "follows", "팔로워": "follows"}
+def parse_metrics(blob):
+    out = {}
+    for m in re.finditer(r"([^\n:]+):\s*([\d,]+)", blob or ""):
+        f = MLABEL.get(m.group(1).strip())
+        digits = m.group(2).replace(",", "")
+        if f and digits: out[f] = int(digits)  # 콤마-only 등 빈 숫자 가드(TS Number.isNaN 파리티)
+    return out
+
 cp_payload = []
 for cp in cp_records:
     collab = eref_to_collab.get(cp["rec_eref"])
@@ -340,6 +351,10 @@ for cp in cp_records:
             "content_type", "concept", "views", "likes", "comments", "reposts", "saves", "shares",
             "metrics_d1", "metrics_d3", "metrics_d7")}
     row |= {"collaboration_id": collab, "external_ref": cp["eref"], "source_system": "onair_2026"}
+    md1, md3, md7 = parse_metrics(cp["metrics_d1"]), parse_metrics(cp["metrics_d3"]), parse_metrics(cp["metrics_d7"])
+    row |= {"views_d1": md1.get("views"), "views_d3": md3.get("views"), "views_d7": md7.get("views"),
+            "likes_d1": md1.get("likes"), "likes_d3": md3.get("likes"), "likes_d7": md7.get("likes"),
+            "comments_d1": md1.get("comments"), "comments_d3": md3.get("comments"), "comments_d7": md7.get("comments")}
     cp_payload.append(row)
 for i in range(0, len(cp_payload), 500):
     sb("POST", "/content_pieces?on_conflict=external_ref", cp_payload[i:i+500], prefer="resolution=merge-duplicates,return=minimal")

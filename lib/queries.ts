@@ -481,7 +481,9 @@ async function rawAnalyticsRecords(): Promise<AnalyticsRecord[]> {
   const { data, error } = await sb
     .from("content_pieces")
     .select(
-      "category,posted_at,scheduled_post_date,views,likes,comments,reposts,saves,shares,collaboration:collaborations(creator:creators(country,tier))"
+      "category,posted_at,scheduled_post_date,views,likes,comments,reposts,saves,shares," +
+        "views_d1,views_d3,views_d7,likes_d1,likes_d3,likes_d7,comments_d1,comments_d3,comments_d7," +
+        "collaboration:collaborations(creator:creators(country,tier))"
     )
     .eq("source_system", "onair_2026")
     .limit(1000);
@@ -497,6 +499,9 @@ async function rawAnalyticsRecords(): Promise<AnalyticsRecord[]> {
     reposts: r.reposts ?? null,
     saves: r.saves ?? null,
     shares: r.shares ?? null,
+    viewsD1: r.views_d1 ?? null, viewsD3: r.views_d3 ?? null, viewsD7: r.views_d7 ?? null,
+    likesD1: r.likes_d1 ?? null, likesD3: r.likes_d3 ?? null, likesD7: r.likes_d7 ?? null,
+    commentsD1: r.comments_d1 ?? null, commentsD3: r.comments_d3 ?? null, commentsD7: r.comments_d7 ?? null,
     country: r.collaboration?.creator?.country ?? null,
     tier: r.collaboration?.creator?.tier ?? null,
   }));
