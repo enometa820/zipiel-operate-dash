@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import * as mock from "./data";
 import type { CollaborationView } from "./data";
 import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type Status, type StatusEvent } from "./types";
+import { aggregate, type AnalyticsData, type AnalyticsRecord, type Grain } from "./analytics";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -470,4 +471,40 @@ export async function fetchPayment(collaborationId: string): Promise<Payment | u
     status: data.status,
     paidAt: data.paid_at ? String(data.paid_at).slice(0, 10) : undefined,
   };
+}
+
+// ---- Analytics (onair_2026 content_pieces 성과 집계) ----
+// content_pieces → collaboration → creator(country·tier) embed. onair_2026 정본만(645건 < 1000 cap).
+async function rawAnalyticsRecords(): Promise<AnalyticsRecord[]> {
+  const sb = createServerClient();
+  if (!sb) return []; // content_pieces mock 없음 → 빈 상태(AC-8 처리)
+  const { data, error } = await sb
+    .from("content_pieces")
+    .select(
+      "category,posted_at,scheduled_post_date,views,likes,comments,reposts,saves,shares,collaboration:collaborations(creator:creators(country,tier))"
+    )
+    .eq("source_system", "onair_2026")
+    .limit(1000);
+  if (error) throw new Error(`content_pieces fetch failed: ${error.message ?? error}`);
+  if (!data) return [];
+  return data.map((r: any) => ({
+    category: r.category ?? null,
+    postedAt: r.posted_at ? String(r.posted_at).slice(0, 10) : null,
+    scheduledPostDate: r.scheduled_post_date ? String(r.scheduled_post_date).slice(0, 10) : null,
+    views: r.views ?? null,
+    likes: r.likes ?? null,
+    comments: r.comments ?? null,
+    reposts: r.reposts ?? null,
+    saves: r.saves ?? null,
+    shares: r.shares ?? null,
+    country: r.collaboration?.creator?.country ?? null,
+    tier: r.collaboration?.creator?.tier ?? null,
+  }));
+}
+
+const getAnalyticsRecords = unstable_cache(rawAnalyticsRecords, ["analytics-records"], { tags: ["collabs"], revalidate: 300 });
+
+export async function fetchAnalytics(grain: Grain, country = "all"): Promise<AnalyticsData> {
+  const records = await getAnalyticsRecords();
+  return aggregate(records, grain, country);
 }
