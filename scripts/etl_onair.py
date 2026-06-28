@@ -159,15 +159,15 @@ def detect_header(rows):
     hi = max(range(min(8, len(rows))), key=lambda i: sum(1 for c in rows[i] if str(c).strip()))
     return hi
 
-# 탭 = (title, gid, default_country, is_drophold)
+# 탭 = (title, gid, default_country). 드랍/홀드는 country=None — handle 매칭 승격으로 적재, status는 map_status 키워드로 분류.
 TABS = [
-    ("KR_온에어", 1526933782, "KR", False), ("CN_온에어", 1593164077, "CN", False),
-    ("JP_온에어", 268882564, "JP", False), ("TW_온에어", 1121208463, "TW", False),
-    ("SG_온에어", 1985580167, "SG", False), ("드랍/홀드", 1638811644, None, True),
+    ("KR_온에어", 1526933782, "KR"), ("CN_온에어", 1593164077, "CN"),
+    ("JP_온에어", 268882564, "JP"), ("TW_온에어", 1121208463, "TW"),
+    ("SG_온에어", 1985580167, "SG"), ("드랍/홀드", 1638811644, None),
 ]
 
 records, cp_records = [], []
-for title, gid, dflt_country, is_dh in TABS:
+for title, gid, dflt_country in TABS:
     rows = sheet_values(title)
     if not rows:
         print(f"  ({title}: 빈 탭)"); continue
@@ -239,7 +239,7 @@ for title, gid, dflt_country, is_dh in TABS:
             "listed_date": to_date(g("listed")), "last_contact": to_date(g("last_contact")),
             "scheduled_post_date": to_date(g("scheduled")),
             "post_url": (g("post_url") if g("post_url").startswith("http") else None),
-            "eref": eref, "gid": gid, "tab": title, "row": hi + 1 + ri, "is_dh": is_dh,
+            "eref": eref, "gid": gid, "tab": title, "row": hi + 1 + ri,
         }
         records.append(rec)
         # content_piece — 업로드 링크 또는 예정일 있으면 생성(달성률 분모 위해 예정도)
@@ -301,6 +301,7 @@ for r in records:
         "listed_date": r["listed_date"], "last_contact": r["last_contact"],
         "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
         "source_system": "onair_2026", "external_ref": r["eref"],
+        "source_sheet_id": SID, "source_tab": r["gid"], "source_row": r["row"],  # provenance discrete(spec §3-2)
         "campaign_label": r["campaign_label"], "partnership_code": r["partnership_code"],
     }
     target = eref_to_id.get(r["eref"])
@@ -312,7 +313,9 @@ for r in records:
     else:
         mode = "insert"
     if mode in ("promote", "update"):
-        p = dict(base)
+        # 빈 온에어 값(None)은 PATCH에서 제외 → 기존(legacy) fee/date 등 보존(손실0 > AC-4 갱신).
+        # creator_id·source_system·external_ref·provenance는 항상 non-None이라 유지·승격 전환 보장.
+        p = {k: v for k, v in base.items() if v is not None}
         if r["status"] and target not in protected:
             p["status"] = r["status"]
         elif target in protected:

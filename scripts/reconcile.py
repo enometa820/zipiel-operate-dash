@@ -112,10 +112,22 @@ def run_checks(csv_path):
 
     # 4b. 온에어 적재(onair-ingestion AC-8)
     onair_collab = count("collaborations", "&source_system=eq.onair_2026")
+    legacy_collab = count("collaborations", "&source_system=eq.legacy_contact_list")
     cp_total = count("content_pieces")
     cp_onair = count("content_pieces", "&source_system=eq.onair_2026")
-    results.append(("온에어 협업 적재(onair_2026)", onair_collab > 0, f"{onair_collab}건"))
+    results.append(("온에어 협업 적재(onair_2026)", onair_collab > 0, f"{onair_collab}건 (legacy frozen {legacy_collab})"))
     results.append(("content_pieces 적재", cp_total > 0, f"총 {cp_total} / onair {cp_onair}"))
+    # provenance discrete 채움(AC-2): onair_2026 협업의 source_tab(gid) NULL 0
+    prov_null = count("collaborations", "&source_system=eq.onair_2026&source_tab=is.null")
+    results.append(("온에어 provenance(source_tab) 채움", prov_null == 0, f"NULL {prov_null}/{onair_collab}"))
+    # content_pieces 1/3/7일차(metrics_d1) 채움률 — 정보(raw text 일부만, 게이트 아님)
+    md1 = count("content_pieces", "&source_system=eq.onair_2026&metrics_d1=not.is.null")
+    rate = (md1 * 100 // cp_onair) if cp_onair else 0
+    results.append(("content_pieces 1일차(metrics_d1) 채움률", True, f"{md1}/{cp_onair} ({rate}%)"))
+    # content_pieces PII 컬럼 0(AC-5 PII 절대선): 스키마에 email/phone/address/이름/주소/전화 부재
+    cp_cols = list((get("/content_pieces?select=*&limit=1") or [{}])[0].keys())
+    pii_cols = [c for c in cp_cols if any(p in c.lower() for p in ("email", "phone", "address", "이름", "주소", "전화"))]
+    results.append(("content_pieces PII 컬럼 0", len(pii_cols) == 0, f"PII컬럼 {pii_cols or '없음'}"))
     # content_pieces 에러문자열 잔존 0 (metrics_d1/d3/d7 raw에 ERROR/#REF 정제 확인)
     dirty = get("/content_pieces?select=id&or=(metrics_d1.ilike.*ERROR*,metrics_d1.ilike.*%23REF*,metrics_d3.ilike.*ERROR*,metrics_d7.ilike.*ERROR*)&limit=5")
     results.append(("content_pieces 에러문자열 정제(잔존 0)", len(dirty) == 0, f"잔존 {len(dirty)}"))
