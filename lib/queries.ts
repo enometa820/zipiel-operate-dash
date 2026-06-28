@@ -4,6 +4,7 @@ import * as mock from "./data";
 import type { CollaborationView } from "./data";
 import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type Status, type StatusEvent } from "./types";
 import { aggregate, type AnalyticsData, type AnalyticsRecord, type Grain } from "./analytics";
+import { aggregateLogistics, type LogisticsData, type ShipmentRecord } from "./logistics";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -512,4 +513,31 @@ const getAnalyticsRecords = unstable_cache(rawAnalyticsRecords, ["analytics-reco
 export async function fetchAnalytics(grain: Grain, country = "all"): Promise<AnalyticsData> {
   const records = await getAnalyticsRecords();
   return aggregate(records, grain, country);
+}
+
+// ---- Logistics (shipments 운영 가시성) ----
+async function rawLogistics(): Promise<LogisticsData> {
+  const sb = createServerClient();
+  if (!sb) return aggregateLogistics([], 0); // 빈 폴백
+  const [{ data, error }, matchedCollabs] = await Promise.all([
+    sb.from("shipments").select("country_code,brand_tag,carrier,fee_krw,delivery_status,source_sheet_id,match_status").limit(2000),
+    sb.from("collaborations").select("id", { count: "exact", head: true }).not("invoice_no", "is", null).then((r: any) => r.count ?? 0),
+  ]);
+  if (error) throw new Error(`shipments fetch failed: ${error.message ?? error}`);
+  const rows: ShipmentRecord[] = (data ?? []).map((r: any) => ({
+    countryCode: r.country_code ?? null,
+    brandTag: r.brand_tag ?? null,
+    carrier: r.carrier ?? null,
+    feeKrw: r.fee_krw != null ? Number(r.fee_krw) : null,
+    deliveryStatus: r.delivery_status ?? null,
+    sourceSheetId: r.source_sheet_id ?? null,
+    matchStatus: r.match_status ?? null,
+  }));
+  return aggregateLogistics(rows, matchedCollabs);
+}
+
+const getLogistics = unstable_cache(rawLogistics, ["logistics"], { tags: ["collabs"], revalidate: 300 });
+
+export async function fetchLogistics(): Promise<LogisticsData> {
+  return getLogistics();
 }
