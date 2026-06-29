@@ -261,14 +261,22 @@ async function rawLogisticsStats(): Promise<LogisticsStats> {
   };
   if (!sb) return empty;
 
-  // 독립 쿼리 6개 — 직렬 왕복 대신 Promise.all 병렬(왕복 시간 ~1/3).
-  const [shipRes, feesRes, prodsRes, totalRes, legacyRes, untaggedRes] = await Promise.all([
-    sb.from("shipments").select("*", { count: "exact", head: true }),
-    sb.from("shipments").select("fee_krw, brand_tag"),
-    sb.from("products").select("name, cogs_krw").order("name"),
-    sb.from("collaborations").select("*", { count: "exact", head: true }),
-    sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", "legacy_contact_list"),
-    sb.from("collaborations").select("*", { count: "exact", head: true }).is("source_system", null),
+  // 독립 쿼리 병렬(왕복 시간 단축). 출처 분포는 실데이터 소스(REAL_DATA_SOURCES)별로 분해 —
+  // 예전엔 legacy 외 전부를 "기타"로 뭉쳐 onair_2026/seeding_op_2026가 화면에 안 보였음.
+  const [[shipRes, feesRes, prodsRes, totalRes, legacyRes, untaggedRes], realResults] = await Promise.all([
+    Promise.all([
+      sb.from("shipments").select("*", { count: "exact", head: true }),
+      sb.from("shipments").select("fee_krw, brand_tag"),
+      sb.from("products").select("name, cogs_krw").order("name"),
+      sb.from("collaborations").select("*", { count: "exact", head: true }),
+      sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", LEGACY_SOURCE),
+      sb.from("collaborations").select("*", { count: "exact", head: true }).is("source_system", null),
+    ]),
+    Promise.all(
+      REAL_DATA_SOURCES.map((s) =>
+        sb.from("collaborations").select("*", { count: "exact", head: true }).eq("source_system", s)
+      )
+    ),
   ]);
 
   const shipments = shipRes.count ?? 0;
@@ -284,12 +292,19 @@ async function rawLogisticsStats(): Promise<LogisticsStats> {
     cogsKrw: p.cogs_krw != null ? Number(p.cogs_krw) : null,
   }));
 
-  // source_system 분포 — 소스가 소수라 known 값별 count(head)로 가볍게.
+  // source_system 분포 — 실데이터 소스별 + legacy + 미태깅으로 분해(소스가 소수라 count head로 가볍게).
   const total = totalRes.count ?? 0;
   const legacy = legacyRes.count ?? 0;
   const untagged = untaggedRes.count ?? 0;
-  const sourceDistribution: Record<string, number> = { legacy_contact_list: legacy };
-  const other = total - legacy - untagged;
+  const sourceDistribution: Record<string, number> = {};
+  let realSum = 0;
+  REAL_DATA_SOURCES.forEach((s, i) => {
+    const c = realResults[i].count ?? 0;
+    realSum += c;
+    if (c > 0) sourceDistribution[s] = c;
+  });
+  sourceDistribution[LEGACY_SOURCE] = legacy;
+  const other = total - legacy - untagged - realSum;
   if (other > 0) sourceDistribution["기타"] = other;
   if (untagged > 0) sourceDistribution["(미태깅)"] = untagged;
 

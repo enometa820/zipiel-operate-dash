@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function HandoffPage() {
   const [stats, logi] = await Promise.all([fetchStats(), fetchLogisticsStats()]);
   const onair = logi.sourceDistribution["onair_2026"] ?? 0;
+  const seedop = logi.sourceDistribution["seeding_op_2026"] ?? 0;
+  const real = onair + seedop;
   const legacy = logi.sourceDistribution["legacy_contact_list"] ?? 0;
 
   return (
@@ -37,13 +39,14 @@ export default async function HandoffPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="협업 건수" value={stats.total.toLocaleString()} unit="건" />
           <Stat label="크리에이터" value={stats.creators.toLocaleString()} unit="명" />
-          <Stat label="온에어 정본" value={onair.toLocaleString()} unit="건" />
+          <Stat label="실데이터(온에어·시딩)" value={real.toLocaleString()} unit="건" />
           <Stat label="발굴 풀(기존 리스트)" value={legacy.toLocaleString()} unit="건" />
         </div>
         <p className="text-[11px] text-[var(--faint)] mt-3">
-          온에어 정본 = effie님 온에어 시트(국가별)에서 가져온 실제 운영 데이터. 발굴 풀 = 예전 컨택 리스트로,
-          중복 인원은 이중으로 세지 않고 온에어 쪽으로 승격했습니다. 모든 행에 출처가 새겨져 있어, 시트를 다시 가져와도
-          기존 데이터·상태 이력·편집이 지워지지 않습니다.
+          실데이터 = effie님 온에어 시트(국가별) {onair.toLocaleString()}건 + 시딩 오퍼레이션 시트 {seedop.toLocaleString()}건에서
+          가져온 실제 운영 데이터(시딩 오퍼레이션 시트에는 진짜 캠페인명이 들어 있습니다). 발굴 풀 = 예전 컨택 리스트로,
+          중복 인원은 이중으로 세지 않고 실데이터 쪽으로 승격했습니다. 운영 지표·달성률은 발굴 풀을 빼고 실데이터만 집계합니다.
+          모든 행에 출처가 새겨져 있어, 시트를 다시 가져와도 기존 데이터·상태 이력·편집이 지워지지 않습니다.
         </p>
       </section>
 
@@ -144,12 +147,12 @@ const DONE = [
   "성과 분석 화면(/analytics) — 일/주/월 콘텐츠 수·달성률·인게이지먼트(%)·1·3·7일차 성과 추이를 국가·기간별로 시각화",
   "물류 운영 화면(/logistics) — 글로벌·국내 발송, 송장↔협업 매칭, 배송 상태, 물류비를 한 화면에",
   "손실 없는 데이터 토대 — 시트를 다시 가져와도 데이터·이력·편집 보존. 모든 행에 출처 기록(온에어 정본 / 발굴 풀 / 작업자 입력 / 향후 크롤링 결과를 안전하게 구분)",
-  "온에어 실데이터 적재 — 국가별 온에어 시트를 운영 정본으로. 기존 리스트와 중복되는 인원은 이중 계상 없이 온에어로 승격. 콘텐츠 성과(조회·좋아요·댓글·1·3·7일차) 적재",
+  "실데이터 적재(온에어 + 시딩 오퍼레이션 시트) — 두 운영 시트를 정본으로. 기존 컨택 리스트와 중복되는 인원은 이중 계상 없이 승격하고, 운영 지표는 발굴 풀(기존 리스트)을 빼고 실데이터만 집계. 시딩 오퍼레이션 시트에서 진짜 캠페인명(브랜드_국가_모드)도 확보. 콘텐츠 성과(조회·좋아요·댓글·1·3·7일차) 적재",
   "물류비·제품 원가 적재(수익성 계산 토대), 정직한 금액 표기(확정 출처만 집계·통화 미확인 제외), 지급 세금 거주지별 분기",
 ];
 
 const NEXT = [
-  { t: "캠페인 단위 관리", d: "지금은 캠페인 이름을 텍스트로만 보존합니다. 브랜드×국가×목표로 캠페인을 구조화하면 목표 대비 달성률을 자동 계산할 수 있습니다. 시작하려면 캠페인별 목표(인원·예산·기간) 기준표가 필요합니다." },
+  { t: "캠페인 단위 관리", d: "지금은 캠페인 이름을 텍스트로만 보존합니다(시딩 오퍼레이션 시트에서 브랜드_국가_모드 형식의 실제 캠페인명을 확보해 둠). 이를 브랜드×국가×목표로 구조화하면 목표 대비 달성률을 자동 계산할 수 있습니다. 시작하려면 캠페인별 목표(인원·예산·기간) 기준표가 필요합니다." },
   { t: "국내 물류비 완성", d: "국내 송장은 적재돼 협업과 연결됐지만, 배송비 칸이 원본 시트에 없어 비용은 비어 있습니다. 출고·요금 자료가 들어오면 국내 물류비·수익성이 완성됩니다." },
   { t: "성과 추이 정밀화", d: "현재 1·3·7일차 추이는 시점별로 집계 모수가 다릅니다. 같은 협업을 시점에 걸쳐 추적하는 동일 코호트 곡선으로 다듬으면 성장 해석이 더 정확해집니다." },
 ];

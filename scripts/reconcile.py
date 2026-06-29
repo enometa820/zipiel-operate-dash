@@ -131,6 +131,15 @@ def run_checks(csv_path):
     cp_total = count("content_pieces")
     cp_onair = count("content_pieces", "&source_system=eq.onair_2026")
     results.append(("온에어 협업 적재(onair_2026)", onair_collab > 0, f"{onair_collab}건 (legacy frozen {legacy_collab})"))
+    # seeding operation 시트 적재(effie '실제 데이터' 4소스 중 누락분, 진짜 캠페인명 보유)
+    seedop_collab = count("collaborations", "&source_system=eq.seeding_op_2026")
+    cp_seedop = count("content_pieces", "&source_system=eq.seeding_op_2026")
+    results.append(("시딩 오퍼레이션 적재(seeding_op_2026)", seedop_collab >= 90, f"협업 {seedop_collab}건 (기대 ≈100) / content {cp_seedop}"))
+    # 실데이터 = onair + seeding_op + manual (legacy=발굴 풀 분리). 운영 지표 분모.
+    manual_collab = count("collaborations", "&source_system=eq.manual")
+    real_collab = onair_collab + seedop_collab + manual_collab
+    results.append(("실데이터 분리(실데이터 vs 발굴 풀)", real_collab > 0 and legacy_collab > 0,
+                    f"실데이터 {real_collab}(온에어 {onair_collab}+시딩 {seedop_collab}+작업자 {manual_collab}) / 발굴 풀 {legacy_collab}"))
     results.append(("content_pieces 적재", cp_total > 0, f"총 {cp_total} / onair {cp_onair}"))
     # provenance discrete 채움(AC-2): onair_2026 협업의 source_tab(gid) NULL 0
     prov_null = count("collaborations", "&source_system=eq.onair_2026&source_tab=is.null")

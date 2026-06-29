@@ -77,7 +77,7 @@ BP 정합: 이 설계는 합성 BP `bp-ai-native-data-layer`(원본·AI생성물
 
 ## 8. 추가로 AI가 질문해야 할 것
 
-- **ETL 재실행 시 legacy↔새 소스 status 충돌 규칙**: 같은 (handle,platform)이 legacy와 장래 onair 양쪽에 있을 때 status 우선순위(권장: onair > legacy, 단 인앱 편집 > 둘 다). 이번엔 onair 미적재라 실제 충돌은 없으나, 머지 규칙의 골격을 지금 박아둘지 / 다음 스프린트로 미룰지. (권장: 골격만 — `source_system` 우선순위 함수 스텁 + 인앱편집 보존 플래그.)
+- **ETL 재실행 시 legacy↔새 소스 status 충돌 규칙**: 같은 (handle,platform)이 legacy와 장래 onair 양쪽에 있을 때 status 우선순위(권장: onair > legacy, 단 인앱 편집 > 둘 다). 이번엔 onair 미적재라 실제 충돌은 없으나, 머지 규칙의 골격을 지금 수립할지 / 다음 스프린트로 미룰지. (권장: 골격만 — `source_system` 우선순위 함수 스텁 + 인앱편집 보존 플래그.)
 - **인앱 편집 보존 판별 메커니즘**: status_history에 system이 아닌 사람(manager) changed_by가 있으면 "편집됨"으로 보고 ETL이 덮지 않게 할지(권장), 아니면 `last_synced_at` 비교로 할지.
 - **`/status` 노출 범위**: 물류비 합계를 KRW로 보여줄 때 H&H(타브랜드) 포함/제외 기본값(권장: 제외, 토글).
 - **reconciliation 출력 형태**: 스크립트 stdout으로 충분한지, 아니면 `/status`에 상시 패널로 둘지(권장: 스크립트 + /status 요약 1줄).
