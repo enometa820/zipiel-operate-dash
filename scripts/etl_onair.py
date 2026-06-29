@@ -10,7 +10,10 @@ from collections import Counter, defaultdict
 socket.setdefaulttimeout(60)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = "C:/Projects/zipiel-operate-dash"
-SID = "10ymVkhZTXEaCHHqQbv8ZZf21gEufW20pvo3cMOAr-P0"
+# effie "우리의 실제 데이터"(슬랙 06-26): B=2026 논의/온에어(국가탭) · C=the frameless seeding operation
+# (On-air 단일탭, Campaign 컬럼=진짜 캠페인명 brand_country_mode). 옛 컨택 리스트(legacy)는 실제 데이터 아님.
+SID_ONAIR = "10ymVkhZTXEaCHHqQbv8ZZf21gEufW20pvo3cMOAr-P0"
+SID_SEEDOP = "1wQ9LqcnIhKRhhJMEssJIhEDFRvostsTlXA8huXMMG0U"
 TOKEN = "C:/Users/sickkiya/.vault/zipiel/oauth-enometa-token.json"
 
 # --- Supabase (write) ---
@@ -48,9 +51,9 @@ _t = json.load(open(TOKEN))
 _body = up.urlencode({"client_id": _t["client_id"], "client_secret": _t["client_secret"], "refresh_token": _t["refresh_token"], "grant_type": "refresh_token"}).encode()
 AT = json.loads(urllib.request.urlopen(urllib.request.Request(_t["token_uri"], data=_body, method="POST")).read().decode())["access_token"]
 
-def sheet_values(title):
+def sheet_values(title, sid):
     rng = "'" + title.replace("'", "''") + "'!1:5000"
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SID}/values/" + up.quote(rng, safe="")
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sid}/values/" + up.quote(rng, safe="")
     for attempt in range(5):
         try:
             r = json.loads(urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": f"Bearer {AT}"})).read().decode())
@@ -159,16 +162,21 @@ def detect_header(rows):
     hi = max(range(min(8, len(rows))), key=lambda i: sum(1 for c in rows[i] if str(c).strip()))
     return hi
 
-# 탭 = (title, gid, default_country). 드랍/홀드는 country=None — handle 매칭 승격으로 적재, status는 map_status 키워드로 분류.
-TABS = [
-    ("KR_온에어", 1526933782, "KR"), ("CN_온에어", 1593164077, "CN"),
-    ("JP_온에어", 268882564, "JP"), ("TW_온에어", 1121208463, "TW"),
-    ("SG_온에어", 1985580167, "SG"), ("드랍/홀드", 1638811644, None),
+# 소스 = (sid, tabs, source_system, eref_prefix). 탭 = (title, gid, default_country).
+# 드랍/홀드·seedop On-air는 country=None — country 컬럼/handle 매칭으로 분류, status는 map_status 키워드로.
+SOURCES = [
+    (SID_ONAIR, [
+        ("KR_온에어", 1526933782, "KR"), ("CN_온에어", 1593164077, "CN"),
+        ("JP_온에어", 268882564, "JP"), ("TW_온에어", 1121208463, "TW"),
+        ("SG_온에어", 1985580167, "SG"), ("드랍/홀드", 1638811644, None),
+    ], "onair_2026", "onair"),
+    (SID_SEEDOP, [("On-air", 99916092, None)], "seeding_op_2026", "seedop"),
 ]
+SHEET_TABS = [(t, g, c, sid, src, pfx) for sid, tabs, src, pfx in SOURCES for t, g, c in tabs]
 
 records, cp_records = [], []
-for title, gid, dflt_country in TABS:
-    rows = sheet_values(title)
+for title, gid, dflt_country, SID_CUR, SRC, PFX in SHEET_TABS:
+    rows = sheet_values(title, SID_CUR)
     if not rows:
         print(f"  ({title}: 빈 탭)"); continue
     hi = detect_header(rows)
@@ -227,7 +235,7 @@ for title, gid, dflt_country in TABS:
         h = handle_from(g("url"), g("name"))
         if not plat or country not in COUNTRY_OK or not h: continue
         tier = g("tier") if g("tier") in TIERS else None
-        eref = f"onair:{gid}:{hi + 1 + ri}"
+        eref = f"{PFX}:{gid}:{hi + 1 + ri}"
         rec = {
             "handle": h, "name": (g("name") or None), "platform": plat, "country": country,
             "followers": to_int(g("followers")) or 0, "tier": tier or "Nano",
@@ -240,13 +248,14 @@ for title, gid, dflt_country in TABS:
             "scheduled_post_date": to_date(g("scheduled")),
             "post_url": (g("post_url") if g("post_url").startswith("http") else None),
             "eref": eref, "gid": gid, "tab": title, "row": hi + 1 + ri,
+            "source_system": SRC, "source_sheet_id": SID_CUR,
         }
         records.append(rec)
         # content_piece — 업로드 링크 또는 예정일 있으면 생성(달성률 분모 위해 예정도)
         post = rec["post_url"]; sched = rec["scheduled_post_date"]
         if post or sched:
             cp_records.append({
-                "eref": eref + ":c", "rec_eref": eref,
+                "eref": eref + ":c", "rec_eref": eref, "source_system": SRC,
                 "post_url": post, "original_url": (g("original") if g("original").startswith("http") else None),
                 "posted_at": to_date(g("completed")), "scheduled_post_date": sched,
                 "category": clean_txt(g("prod_up")) or clean_txt(g("prod_sent")),
@@ -273,7 +282,7 @@ for r in records:
     key = (r["handle"], r["platform"])
     if key in seen: continue
     seen[key] = True
-    cre_payload.append({k: r[k] for k in ["handle", "name", "platform", "country", "followers", "tier", "email", "manager", "avg_views"]} | {"source_system": "onair_2026"})
+    cre_payload.append({k: r[k] for k in ["handle", "name", "platform", "country", "followers", "tier", "email", "manager", "avg_views"]} | {"source_system": r["source_system"]})
 for i in range(0, len(cre_payload), 500):
     sb("POST", "/creators?on_conflict=handle,platform", cre_payload[i:i+500], prefer="resolution=merge-duplicates,return=minimal")
 cre_id = {(c["handle"], c["platform"]): c["id"] for c in sb_paged("/creators?select=id,handle,platform")}
@@ -300,8 +309,8 @@ for r in records:
         "content_fee_krw": r["fee"], "cpv": r["cpv"], "tracking_number": r["tracking"],
         "listed_date": r["listed_date"], "last_contact": r["last_contact"],
         "scheduled_post_date": r["scheduled_post_date"], "post_url": r["post_url"],
-        "source_system": "onair_2026", "external_ref": r["eref"],
-        "source_sheet_id": SID, "source_tab": r["gid"], "source_row": r["row"],  # provenance discrete(spec §3-2)
+        "source_system": r["source_system"], "external_ref": r["eref"],
+        "source_sheet_id": r["source_sheet_id"], "source_tab": r["gid"], "source_row": r["row"],  # provenance discrete(spec §3-2)
         "campaign_label": r["campaign_label"], "partnership_code": r["partnership_code"],
     }
     target = eref_to_id.get(r["eref"])
@@ -350,7 +359,7 @@ for cp in cp_records:
     row = {k: cp[k] for k in ("post_url", "original_url", "posted_at", "scheduled_post_date", "category",
             "content_type", "concept", "views", "likes", "comments", "reposts", "saves", "shares",
             "metrics_d1", "metrics_d3", "metrics_d7")}
-    row |= {"collaboration_id": collab, "external_ref": cp["eref"], "source_system": "onair_2026"}
+    row |= {"collaboration_id": collab, "external_ref": cp["eref"], "source_system": cp["source_system"]}
     md1, md3, md7 = parse_metrics(cp["metrics_d1"]), parse_metrics(cp["metrics_d3"]), parse_metrics(cp["metrics_d7"])
     row |= {"views_d1": md1.get("views"), "views_d3": md3.get("views"), "views_d7": md7.get("views"),
             "likes_d1": md1.get("likes"), "likes_d3": md3.get("likes"), "likes_d7": md7.get("likes"),
