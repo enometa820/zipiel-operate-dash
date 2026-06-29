@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { CollaborationView } from "@/lib/data";
 import { type Status } from "@/lib/types";
 import { CampaignBadge, CountryFlag, PlatformBadge, TierBadge } from "@/components/badges";
-import { formatCompact, formatDate } from "@/lib/utils";
+import { formatCompact } from "@/lib/utils";
 import type { CollaborationPatch } from "@/app/actions";
 import { SelectCell, TextCell } from "./EditableCell";
 import { StatusSelectCell } from "./StatusPill";
@@ -117,8 +117,8 @@ export function makeColumns(onEdit: EditFn, managerOptions: string[]): ColumnDef
     c.accessor((r) => r.listedDate ?? "", {
       id: "listed",
       header: "Listed",
-      meta: { basis: 92 },
-      cell: (ctx) => <span className="tabular-nums text-[var(--muted)]">{formatDate(ctx.getValue() as string)}</span>,
+      meta: { basis: 116 },
+      cell: (ctx) => <TextCell type="date" ariaLabel="Listed date" value={(ctx.getValue() as string) || ""} onCommit={(v) => onEdit(ctx.row.original.id, { listedDate: v || null })} />,
     }),
     // ---- 기본 숨김(컬럼 매니저로 토글) ----
     c.accessor((r) => r.creator.tier, {
@@ -136,8 +136,8 @@ export function makeColumns(onEdit: EditFn, managerOptions: string[]): ColumnDef
     c.accessor((r) => r.scheduledPostDate ?? "", {
       id: "scheduled",
       header: "Scheduled post",
-      meta: { basis: 110 },
-      cell: (ctx) => <span className="tabular-nums text-[var(--muted)]">{formatDate(ctx.getValue() as string)}</span>,
+      meta: { basis: 130 },
+      cell: (ctx) => <TextCell type="date" ariaLabel="Scheduled post date" value={(ctx.getValue() as string) || ""} onCommit={(v) => onEdit(ctx.row.original.id, { scheduledPostDate: v || null })} />,
     }),
     c.accessor((r) => r.cpv ?? null, {
       id: "cpv",
@@ -146,6 +146,31 @@ export function makeColumns(onEdit: EditFn, managerOptions: string[]): ColumnDef
       cell: (ctx) => {
         const v = ctx.getValue() as number | null;
         return <span className="tabular-nums text-[var(--muted)]">{v != null ? "₩" + v : "—"}</span>;
+      },
+    }),
+    c.accessor((r) => r.postUrl ?? "", {
+      id: "post",
+      header: "Post URL",
+      meta: { basis: 180, grow: 2 },
+      cell: (ctx) => {
+        const url = (ctx.getValue() as string) || "";
+        return (
+          <div className="flex w-full min-w-0 items-center gap-1">
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Open post"
+                className="shrink-0 text-[var(--accent)] hover:underline"
+              >
+                ↗
+              </a>
+            )}
+            <TextCell type="url" ariaLabel="Post URL" value={url} onCommit={(v) => onEdit(ctx.row.original.id, { postUrl: v || null })} />
+          </div>
+        );
       },
     }),
   ];

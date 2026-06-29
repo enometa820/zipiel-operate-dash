@@ -23,6 +23,7 @@ export const GRID_COLUMNS: { id: string; label: string; defaultVisible: boolean 
   { id: "type", label: "Campaign", defaultVisible: false },
   { id: "scheduled", label: "Scheduled post", defaultVisible: false },
   { id: "cpv", label: "CPV", defaultVisible: false },
+  { id: "post", label: "Post URL", defaultVisible: false },
 ];
 
 const DEFAULT_COLUMN_ORDER = GRID_COLUMNS.map((c) => c.id);

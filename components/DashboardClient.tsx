@@ -23,6 +23,9 @@ function applyPatch(patch: CollaborationPatch): Partial<CollaborationView> {
   if (patch.notes !== undefined) out.notes = patch.notes ?? undefined;
   if (patch.contentFeeKrw !== undefined) out.contentFeeKrw = patch.contentFeeKrw ?? undefined;
   if (patch.lastContact !== undefined) out.lastContact = patch.lastContact ?? undefined;
+  if (patch.listedDate !== undefined) out.listedDate = patch.listedDate ?? undefined;
+  if (patch.scheduledPostDate !== undefined) out.scheduledPostDate = patch.scheduledPostDate ?? undefined;
+  if (patch.postUrl !== undefined) out.postUrl = patch.postUrl ?? undefined;
   return out;
 }
 

@@ -46,7 +46,7 @@ export function TextCell({
   value: string;
   onCommit: (v: string) => void;
   placeholder?: string;
-  type?: "text" | "number" | "date";
+  type?: "text" | "number" | "date" | "url";
   ariaLabel?: string;
 }) {
   const [v, setV] = useState(value);

@@ -36,6 +36,9 @@ export interface CollaborationPatch {
   notes?: string | null;
   contentFeeKrw?: number | null;
   lastContact?: string | null;
+  listedDate?: string | null;
+  scheduledPostDate?: string | null;
+  postUrl?: string | null;
 }
 
 const PATCH_COLUMN: Record<keyof CollaborationPatch, string> = {
@@ -44,6 +47,9 @@ const PATCH_COLUMN: Record<keyof CollaborationPatch, string> = {
   notes: "notes",
   contentFeeKrw: "content_fee_krw",
   lastContact: "last_contact",
+  listedDate: "listed_date",
+  scheduledPostDate: "scheduled_post_date",
+  postUrl: "post_url",
 };
 
 export async function updateCollaboration(id: string, patch: CollaborationPatch) {
