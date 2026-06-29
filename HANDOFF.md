@@ -73,7 +73,29 @@
 
 ---
 
-## 7. 인수자 유형별
+## 7. 개발자 온보딩 (코드를 이어받는 분)
 
-- **코드를 이어받는 개발자라면**: 2번 순서대로 읽고 → 3번 접근권한 받고 → `npm install` → `.env.local` 작성 → `npm run dev`. 빌드/검증은 `npx tsc --noEmit`·`npm test`·`npm run build`.
-- **운영만 이어받는다면**: 앱 로그인 후 `/handoff`·`/status` 탭이면 충분합니다. 개발은 별도 개발자에게 위 패키지를 그대로 전달하세요.
+### 첫날 로컬 띄우기
+1. repo clone → `npm install`
+2. `.env.local`을 루트에 작성(gitignore라 repo에 없음) — 키 6개:
+   - `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` · `SUPABASE_SERVICE_KEY` (3번 Supabase에서)
+   - `APP_USER` · `APP_PASS` · `APP_SESSION_SECRET` (앱 로그인 — 자유 설정)
+3. `npm run dev` → `localhost:3000`. **env가 없어도 `lib/data.ts` 목 데이터로 폴백**되어 DB 없이도 화면은 뜹니다(연결 후 실데이터로 전환).
+
+### 데이터 흐름 (한눈에)
+시트 CSV → `scripts/etl_seeding.py`·`etl_onair.py`·`etl_shipments.py`(정규화·출처 태깅) → Supabase Postgres → `lib/queries.ts`(fetch + snake→camel 매핑, env 없으면 `lib/data.ts` 목 폴백) → 서버 컴포넌트 → 클라이언트(`components/`). 상태·입력 쓰기 = `app/actions.ts` server action(service key) → DB 트리거가 상태 이력을 자동 기록.
+- 타입 정본 = `lib/types.ts`. 집계·판정 순수함수 = `lib/{analytics,metrics,logistics,stuck}.ts`(테스트 정본, `lib/__tests__/`).
+- 스키마 정본 = `db/migrations/` = `supabase/migrations/`. 변경 = `supabase db push`(vault env source 필요), 시드 = `supabase db reset --linked`.
+- 라우트: `/`(Overview) · `/board`(작업면) · `/collaborations/[id]`(Deal) · `/analytics` · `/logistics` · `/status` · `/handoff` · `/login`. 인증 = `middleware.ts` 쿠키 게이트.
+
+### 검증·배포
+- 타입 `npx tsc --noEmit` · 테스트 `npm test`(vitest) · 빌드 `npm run build` · lint `npm run lint`
+- 배포 = main에 push하면 Vercel 자동, 또는 `vercel --prod --yes`
+- 실데이터 재적재 = `python scripts/etl_seeding.py` (원본 CSV는 gitignore된 `research/*-snapshot/`가 있어야 함 — 3번 #7 참조)
+
+### 미리 알아둘 함정 (시간 아낌)
+- **dev HMR 워커가 "Jest worker" 크래시** → 코드 문제 아닌 로컬 인프라 현상. `npm run build` 또는 빌드본(`npx next start`)으로 확인하세요.
+- **프로덕션 로그인 자동검증 불가** — playwright가 secure 쿠키를 유지 못 함. 로컬 빌드본(`npx next start`)으로 검증(서버 로그 `POST /login 303 → GET / 200`이 성공 신호).
+- **DB는 additive만** — blanket DELETE/TRUNCATE 절대 금지(과거 데이터 소실 사고로 구조적으로 막아둠). 마이그는 ADD COLUMN·CREATE만, 입력 행은 `source_system` 태깅으로 ETL 재실행에도 보존.
+
+> 운영만 이어받는 사람은 앱 로그인 후 `/handoff`·`/status` 탭이면 충분합니다 — 위 개발 패키지는 개발 담당자에게 전달하세요.
