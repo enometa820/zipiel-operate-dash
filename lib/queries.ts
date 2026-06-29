@@ -6,6 +6,7 @@ import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type P
 import { aggregate, type AnalyticsData, type AnalyticsRecord, type Grain } from "./analytics";
 import { aggregateLogistics, type LogisticsData, type ShipmentRecord } from "./logistics";
 import { isStuck } from "./stuck";
+import { REAL_DATA_SOURCES, LEGACY_SOURCE, isRealData } from "./sources";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -91,10 +92,11 @@ const VIEW_ORDER = [
   { col: "id", asc: true },
 ];
 // Sourcing(발굴 풀) 제외 — 작업면 기본 로드. 14k → ~1.9k로 줄여 빠르고 캐시 가능.
-// 단, 작업자가 앱에서 직접 추가한 행(source_system='manual')은 status가 Listing이라도
-// 항상 보여야 한다 — "방금 추가했는데 사라졌다"를 막는다(발굴 풀 legacy와 구분).
+// 작업면 기본 = 실제 데이터(온에어·seeding op·작업자 입력)의 진행 건. legacy(옛 컨택 리스트)는
+// effie 정의상 실제 데이터가 아니라 발굴 풀 → 기본에서 제외(?all=1로 발굴 풀까지 로드).
+// manual 입력 행은 status가 Listing이라도 항상 보임(방금 추가했는데 사라짐 방지).
 const NOT_SOURCING = (q: any) =>
-  q.or('source_system.eq.manual,status.not.in.("Listing","Contact Completed")');
+  q.neq("source_system", LEGACY_SOURCE).or('source_system.eq.manual,status.not.in.("Listing","Contact Completed")');
 
 async function rawViews(includeSourcing: boolean): Promise<CollaborationView[]> {
   const sb = createServerClient();
@@ -127,10 +129,11 @@ export interface CollabFact {
   creatorId: string;
   country: string;
   campaignType: string;
+  sourceSystem?: string;
 }
 
 const FACTS_SELECT =
-  "status,content_fee_krw,fee_source,last_contact,listed_date,post_url,manager,creator_id,creator:creators(country),campaign:campaigns(type)";
+  "status,content_fee_krw,fee_source,last_contact,listed_date,post_url,manager,creator_id,source_system,creator:creators(country),campaign:campaigns(type)";
 
 async function rawFacts(): Promise<CollabFact[]> {
   const sb = createServerClient();
@@ -146,6 +149,7 @@ async function rawFacts(): Promise<CollabFact[]> {
       creatorId: v.creatorId,
       country: v.creator.country,
       campaignType: v.campaign.type,
+      sourceSystem: v.sourceSystem,
     }));
   }
   const all = await pagedAll(sb, FACTS_SELECT, [{ col: "id", asc: true }]);
@@ -160,6 +164,7 @@ async function rawFacts(): Promise<CollabFact[]> {
     creatorId: r.creator_id,
     country: r.creator?.country ?? "?",
     campaignType: r.campaign?.type ?? "?",
+    sourceSystem: r.source_system ?? undefined,
   }));
 }
 
@@ -357,6 +362,12 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
 
   for (const f of facts) {
     creatorIds.add(f.creatorId);
+    // legacy(옛 2026 컨택 리스트) = effie 정의상 실제 데이터 아님 → 발굴 풀로만 집계하고
+    // 운영 지표(fee 원장·active·funnel·달성률)에서 제외한다.
+    if (!isRealData(f.sourceSystem)) {
+      discoveryPool++;
+      continue;
+    }
     const phase = STATUS_PHASE[f.status];
     const fee = f.contentFeeKrw;
     const trusted = f.feeSource === "sheet_krw";
@@ -469,8 +480,8 @@ export async function fetchPayment(collaborationId: string): Promise<Payment | u
   };
 }
 
-// ---- Analytics (onair_2026 content_pieces 성과 집계) ----
-// content_pieces → collaboration → creator(country·tier) embed. onair_2026 정본만(645건 < 1000 cap).
+// ---- Analytics (실제 데이터 content_pieces 성과 집계) ----
+// content_pieces → collaboration → creator(country·tier) embed. 실제 데이터(온에어+seeding op)만(746건 < 1000 cap).
 async function rawAnalyticsRecords(): Promise<AnalyticsRecord[]> {
   const sb = createServerClient();
   if (!sb) return []; // content_pieces mock 없음 → 빈 상태(AC-8 처리)
@@ -481,7 +492,7 @@ async function rawAnalyticsRecords(): Promise<AnalyticsRecord[]> {
         "views_d1,views_d3,views_d7,likes_d1,likes_d3,likes_d7,comments_d1,comments_d3,comments_d7," +
         "collaboration:collaborations(creator:creators(country,tier))"
     )
-    .eq("source_system", "onair_2026")
+    .in("source_system", REAL_DATA_SOURCES as unknown as string[])
     .limit(1000);
   if (error) throw new Error(`content_pieces fetch failed: ${error.message ?? error}`);
   if (!data) return [];
