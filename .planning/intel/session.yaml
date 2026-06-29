@@ -1,16 +1,16 @@
-meta: {repo: zipiel-operate-dash, updated: 2026-06-29 00:45 KST}
-status_line: "6개 우로보로스 사이클 완료·전부 배포(HEAD 5489d17). onair-ingestion verify(provenance·드랍홀드 실증) → 인수인계 탭(/handoff) → analytics-layer(/analytics) → shipping-completion(국내송장398·매칭278) → content-timeseries(1/3/7일차 추이) → logistics-view(/logistics). 각 사이클 spec·plan·execute·verify 완주·적대검증 격리 PASS. NavTabs 6탭(Overview·Work board·Analytics·Logistics·개발현황·인수인계). 다음 = campaign-citizenship(effie 캠페인 마스터 정본 필요·외부 게이트) 또는 보강."
+meta: {repo: zipiel-operate-dash, updated: 2026-06-29 13:00 KST}
+status_line: "worker-entry 자율 루프 완료 — 4커밋 전부 배포(HEAD 05769a8). effie 인계 후 '시트 대신 쓰는 툴' 관점 전환: 작업자 신규 입력(board에서 새 크리에이터·협업 추가, source_system='manual' 태깅으로 ETL 멱등 보존) + 편집 컬럼 확장(listed·scheduled·post_url 인라인) + 대표용 정체(stuck) 가시화(Overview 경고 배너 + board ?stuck=1 필터, lib/stuck.ts 공유 정의·테스트 9건) + 개발현황·인수인계 판 최신화(이전 사이클 stale 교정). 그 전 6 우로보로스 사이클(onair·handoff·analytics·shipping·timeseries·logistics) 위에 쌓음. NavTabs 6탭. 다음 = campaign-citizenship(effie 캠페인 목표 정본 필요·외부 게이트) 또는 보강."
 facts:
-  commits: "5489d17 logistics · 3452316 timeseries · 7b4dcc3 shipping · 36f8d2a analytics · 2ecca5f handoff · 40e0bec onair-verify"
+  commits: "05769a8 status최신화 · 427ddba stuck가시화 · dba251c 편집컬럼 · 6c6b579 작업자입력 / 그 전 5489d17 logistics · 3452316 timeseries · 7b4dcc3 shipping · 36f8d2a analytics · 2ecca5f handoff"
   git: clean
-  data: "라이브 Supabase(seeding-ops): collaborations 14,549(onair_2026 789·legacy 13,760)·creators 13,093·content_pieces 645(파싱 likes_d1 340·views_d1 82)·shipments 769(글로벌371·국내398·매칭278/협업282)·payments 0. 마이그 0016까지 적용."
-  screens: "/analytics(grain·country 토글·매트릭스·달성률·인게이지먼트·1/3/7추이) · /logistics(발송·매칭·배송상태·물류비) · /handoff(인수인계) — 전부 읽기전용 영어 UI. 집계 순수함수=lib/{analytics,metrics,logistics}.ts(테스트 정본 43건)."
-  sprints: ".enometa/ — onair-ingestion·analytics-layer·shipping-completion·content-timeseries·logistics-view 5사이클(전 verify PASS). 적대검증 = enometa-adversarial-verifier 격리."
+  data: "라이브 Supabase(seeding-ops): collaborations 14,549(onair_2026 789·legacy 13,760·manual 작업자입력분 가산)·creators 13,093·content_pieces 645·shipments 769(글로벌371·국내398·매칭278)·payments 0. 마이그 0016까지(작업자입력은 source_system·external_ref 기존 컬럼 사용·마이그 0)."
+  screens: "쓰기 가능: Work board(상태·담당자·notes·fee·lastContact + 신규 listed·scheduled·post_url 인라인 편집 / 'New entry' 버튼으로 새 협업·크리에이터 추가 / 'Needs attention only' 정체 필터) · Deal page(지급 입력). 읽기: /analytics·/logistics·/handoff·/status. Overview에 stuck 경고 배너(→/board?stuck=1). 집계·정체 순수함수=lib/{analytics,metrics,logistics,stuck}.ts(테스트 52건)."
+  entry: "작업자 신규 입력 = app/actions.ts createWorkerEntry(creators handle+platform 재사용·campaign type별 재사용·collaboration insert, 전부 source_system='manual'·external_ref='manual:{uuid}'). NOT_SOURCING 필터가 manual은 Listing이어도 항상 노출(.or). UI=components/board/NewEntryDialog.tsx."
 next:
-  - {task: "campaign-citizenship — brand×country×mode·target·역산 달성률(scheduled 아닌 캠페인 목표 기준). effie 캠페인 마스터 정본 필요(외부 게이트·자율 불가). 정본 확보 후 진행.", done: false}
-  - {task: "보강 후보(자율 가능): analytics 동일 코호트 추이(현 d1/d3/d7 n 상이 813→1001은 다른 모집단)·Overview에 물류/매칭 요약 노출·미매칭 12자리 tracking 추가 매칭 키 탐색.", done: false}
-  - {task: "국내 물류비 null(배송비 컬럼 부재). 출고현황 시트·EMS 요금 별도 적재 시 물류비 완성(후속 D1-7 비용 롤업).", done: false}
+  - {task: "campaign-citizenship — brand×country×mode·target·역산 달성률. effie 캠페인 목표(인원·예산·기간) 기준표 정본 필요(외부 게이트·자율 불가). effie 인계로 정본 확보가 더 어려워짐 — 목표 없이 '캠페인 시민화(텍스트→엔티티 정규화)'만 자율 가능.", done: false}
+  - {task: "보강 후보(자율 가능): Overview에 물류/매칭 요약 노출·analytics 동일 코호트 추이(현 d1/d3/d7 n 상이)·미매칭 12자리 tracking 추가 매칭 키·작업자 입력 후 Deal에서 fee/tax 채우는 흐름 점검.", done: false}
+  - {task: "국내 물류비 null(배송비 컬럼 부재). 출고현황 시트·EMS 요금 별도 적재 시 물류비 완성.", done: false}
 cautions:
-  - "PII 절대선: 온에어 email·국내송장 PII(주소·이름·전화·우편번호)·원본 CSV(research/*-snapshot/)·슬랙은 커밋 금지(gitignore). shipments·content_pieces에 PII 컬럼 0 유지(reconcile 검증)."
-  - "라이브 DB additive only(ADD COLUMN·CREATE). blanket DELETE/TRUNCATE 재등장 즉시 중단. ETL 재실행 전후 reconcile 멱등(snapshot→재실행→ALL PASS). 매칭 갱신은 invoice_no·match_status만(status 보존)."
-  - "화면 읽기전용·정직 표기(null·추정 투명·날조0). 집계 순수함수(lib/analytics·metrics·logistics)는 테스트 정본 — 파이썬 ETL(parse_metrics 등)과 라벨·로직 일치 유지. taskkill //IM node.exe 금지(포트 PID만)."
+  - "PII 절대선: 온에어 email·국내송장 PII(주소·이름·전화·우편번호)·원본 CSV(research/*-snapshot/)·슬랙은 커밋 금지(gitignore). shipments·content_pieces에 PII 컬럼 0 유지. 작업자 입력은 email 선택(creators.email, RLS·최소권한)."
+  - "라이브 DB additive only(ADD COLUMN·CREATE·INSERT). blanket DELETE/TRUNCATE 재등장 즉시 중단. 작업자 입력 행은 source_system='manual'·external_ref unique로 ETL 멱등 upsert가 안 건드림(D-16 연장). 라이브 검증 시 테스트행은 생성→확인→단건 삭제(내가 만든 것만)."
+  - "정직 표기(null·추정 투명·날조0). 정체(stuck) 정의는 lib/stuck.ts 단일 정본 — Overview 서버집계·board 필터가 공유(14일+ 무소통·active만). 개발현황/인수인계 판은 D-22(작업방식 표현 금지·작업 내용 중심·내부경로 미노출). taskkill //IM node.exe 금지(포트 PID만)."
