@@ -41,6 +41,26 @@ export function Overview({ stats }: { stats: OverviewStats }) {
         <Kpi label="Discovery pool" sub="Sourcing — not yet active" value={f(stats.discoveryPool)} tone="muted" />
       </div>
 
+      {/* 정체 알림 — active 중 소통이 끊긴 협업. 담당자가 손을 뗀 뒤 가장 먼저 점검할 대상 */}
+      {stats.stuck > 0 && (
+        <a
+          href="/board?stuck=1"
+          className="flex items-center justify-between gap-4 rounded-lg px-4 py-3 transition hover:opacity-90"
+          style={{ border: "1px solid var(--phase-negotiation)", background: "color-mix(in srgb, var(--phase-negotiation) 8%, transparent)" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg" style={{ color: "var(--phase-negotiation)" }}>⚠</span>
+            <div>
+              <div className="text-sm font-semibold">
+                {f(stats.stuck)} active deal{stats.stuck === 1 ? "" : "s"} need attention
+              </div>
+              <div className="text-xs text-[var(--muted)]">No contact logged in 14+ days — the first to review.</div>
+            </div>
+          </div>
+          <span className="shrink-0 text-xs font-medium" style={{ color: "var(--phase-negotiation)" }}>Review on board →</span>
+        </a>
+      )}
+
       {/* 정직한 금액 — 집행 vs 제안 분리 */}
       <div className="card p-5">
         <div className="flex flex-wrap items-end justify-between gap-6">

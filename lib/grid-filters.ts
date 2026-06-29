@@ -2,6 +2,7 @@
 // 클라이언트 필터로 충분. Grid/Kanban/Table이 같은 결과를 공유한다.
 import { STATUS_PHASE, type Country, type Status } from "./types";
 import type { CollaborationView } from "./data";
+import { isStuck } from "./stuck";
 
 export type DateDim = "listed" | "lastContact" | "scheduled";
 
@@ -15,6 +16,7 @@ export interface GridFilters {
   dateFrom: string; // YYYY-MM-DD or ""
   dateTo: string;
   hideSourcing: boolean;
+  stuckOnly: boolean; // active 중 정체(미소통 14일+)만
 }
 
 export const EMPTY_FILTERS: GridFilters = {
@@ -27,6 +29,7 @@ export const EMPTY_FILTERS: GridFilters = {
   dateFrom: "",
   dateTo: "",
   hideSourcing: false,
+  stuckOnly: false,
 };
 
 function dateField(v: CollaborationView, dim: DateDim): string | undefined {
@@ -43,6 +46,7 @@ export function applyFilters(views: CollaborationView[], f: GridFilters): Collab
   const hasDate = Boolean(f.dateFrom || f.dateTo);
   return views.filter((v) => {
     if (f.hideSourcing && STATUS_PHASE[v.status] === "Sourcing") return false;
+    if (f.stuckOnly && !isStuck(v.status, v.lastContact)) return false;
     if (statusSet.size && !statusSet.has(v.status)) return false;
     if (countrySet.size && !countrySet.has(v.creator.country)) return false;
     if (managerSet.size && !managerSet.has(v.manager)) return false;
@@ -66,6 +70,7 @@ export function activeFilterCount(f: GridFilters): number {
     (f.type !== "all" ? 1 : 0) +
     (f.q ? 1 : 0) +
     (f.dateFrom || f.dateTo ? 1 : 0) +
-    (f.hideSourcing ? 1 : 0)
+    (f.hideSourcing ? 1 : 0) +
+    (f.stuckOnly ? 1 : 0)
   );
 }

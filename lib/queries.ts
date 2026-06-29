@@ -5,6 +5,7 @@ import type { CollaborationView } from "./data";
 import { PHASES, STATUS_PHASE, type Campaign, type Creator, type Payment, type Phase, type Status, type StatusEvent } from "./types";
 import { aggregate, type AnalyticsData, type AnalyticsRecord, type Grain } from "./analytics";
 import { aggregateLogistics, type LogisticsData, type ShipmentRecord } from "./logistics";
+import { isStuck } from "./stuck";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -303,7 +304,6 @@ export const fetchLogisticsStats = unstable_cache(rawLogisticsStats, ["logistics
 // 집행 cash-out은 payments 테이블(status=paid)이 정본이고, 있으면 그쪽을 우선한다.
 const DONE_STATUSES = new Set(["Content Uploaded", "Completed"]); // 콘텐츠 산출물(라이브) 카운트용
 const EXECUTED_STATUSES = new Set(["Completed"]); // 시트 추정 실집행 게이트(+ 게시링크 보유)
-const STUCK_DAYS = 14;
 
 export interface OverviewStats {
   total: number;
@@ -330,13 +330,6 @@ export interface OverviewStats {
   byCountryActive: Record<string, number>;
   byManagerActive: Record<string, number>;
   byCampaignActive: Record<string, number>;
-}
-
-function daysSince(iso?: string): number | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  if (isNaN(t)) return null; // 잘못된 날짜(예: 2026-04-31)는 NaN → null(미상=stuck로 집계)
-  return Math.floor((Date.now() - t) / 86_400_000);
 }
 
 export async function fetchOverviewStats(): Promise<OverviewStats> {
@@ -399,8 +392,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     funnelCount[phase] = (funnelCount[phase] ?? 0) + 1;
 
     if (DONE_STATUSES.has(f.status)) contentLive++;
-    const d = daysSince(f.lastContact);
-    if (d === null || d >= STUCK_DAYS) stuck++;
+    if (isStuck(f.status, f.lastContact)) stuck++;
 
     if (trusted && fee > 0) {
       pipelineValueKrw += fee;

@@ -29,11 +29,11 @@ function applyPatch(patch: CollaborationPatch): Partial<CollaborationView> {
   return out;
 }
 
-export function DashboardClient({ initial, loadedAll = true, live = false }: { initial: CollaborationView[]; loadedAll?: boolean; live?: boolean }) {
+export function DashboardClient({ initial, loadedAll = true, live = false, initialStuck = false }: { initial: CollaborationView[]; loadedAll?: boolean; live?: boolean; initialStuck?: boolean }) {
   const router = useRouter();
   const [views, setViews] = useState(initial);
   const [, startTransition] = useTransition();
-  const [filters, setFilters] = useState<GridFilters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<GridFilters>(initialStuck ? { ...EMPTY_FILTERS, stuckOnly: true } : EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editError, setEditError] = useState("");
   const [showNew, setShowNew] = useState(false);

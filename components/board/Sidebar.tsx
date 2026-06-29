@@ -167,6 +167,15 @@ export function Sidebar({
                   className="w-full bg-transparent py-1.5 text-sm outline-none"
                 />
               </div>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-[var(--panel-2)]">
+                <input
+                  type="checkbox"
+                  checked={filters.stuckOnly}
+                  onChange={() => set({ stuckOnly: !filters.stuckOnly })}
+                  className="accent-[var(--phase-negotiation)]"
+                />
+                <span>Needs attention only <span className="text-[var(--faint)]">· no contact 14d+</span></span>
+              </label>
             </div>
 
             <FilterBlock title="Status">
