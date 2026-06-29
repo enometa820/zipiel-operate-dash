@@ -85,7 +85,7 @@ def map_campaign(c):
     return "Gifted"
 
 # 매니저 표기 정규화: 시트의 대소문자·한글 약칭·합동표기를 canonical로.
-# 미상은 원문 보존(날조 금지). 근거 = scripts/diagnose_fees.py distinct 출력.
+# 미상은 원문 보존(날조 금지). 근거 = 매니저 표기 distinct 분석(초기 시딩).
 MANAGER_CANON = {
     "sol": "Sol", "anna": "Anna", "jane": "Jane", "nhi": "Nhi",
     "natalie": "Natalie", "nat": "Natalie",
