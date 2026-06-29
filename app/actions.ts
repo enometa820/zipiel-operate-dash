@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import { fetchPayment, fetchStatusEvents } from "@/lib/queries";
-import type { Payment, Status, StatusEvent, TaxType } from "@/lib/types";
+import type { CampaignType, Country, Payment, Platform, Status, StatusEvent, TaxType, Tier } from "@/lib/types";
 
 // detail 패널 lazy-load — 기존 쿼리 래핑(데이터 계약 불변).
 export async function getStatusHistory(collaborationId: string): Promise<StatusEvent[]> {
@@ -109,4 +109,124 @@ export async function upsertPayment(collaborationId: string, input: PaymentInput
   revalidatePath(`/collaborations/${collaborationId}`);
   revalidatePath("/");
   return { ok: true as const };
+}
+
+// ── 작업자 신규 입력 ──────────────────────────────────────────────────────
+// 작업자가 시트 대신 앱에서 "새 인플루언서 발견 → 협업 시작"을 직접 한다.
+// 핵심 안전장치: source_system='manual' + external_ref='manual:{uuid}' 태깅 →
+// ETL 멱등 upsert(external_ref grain, frozen collab guard)가 이 행을 절대 건드리지 않음(D-16).
+// creators는 (handle,platform) 재사용, campaign은 type별 재사용(ETL과 동일 규칙).
+
+// followers 구간 → tier 자동 산출(작업자가 직접 안 골라도 되게). 입력 tier가 있으면 그걸 우선.
+function tierFromFollowers(followers: number): Tier {
+  if (followers >= 1_000_000) return "Mega";
+  if (followers >= 500_000) return "Macro";
+  if (followers >= 100_000) return "Mid";
+  if (followers >= 10_000) return "Micro";
+  return "Nano";
+}
+
+export interface WorkerEntryInput {
+  // creator
+  handle: string;
+  name?: string;
+  platform: Platform;
+  country: Country;
+  followers?: number;
+  tier?: Tier;
+  email?: string | null;
+  // collaboration
+  manager: string;
+  campaignType: CampaignType;
+  status?: Status;
+  contentFeeKrw?: number | null;
+  notes?: string | null;
+}
+
+export async function createWorkerEntry(input: WorkerEntryInput) {
+  const sb = createServerClient();
+  if (!sb) return { ok: false, reason: "no-db" as const };
+
+  const handle = input.handle?.trim();
+  const country = input.country?.trim();
+  const manager = input.manager?.trim() || "unknown";
+  if (!handle) return { ok: false, reason: "handle is required" as const };
+  if (!input.platform) return { ok: false, reason: "platform is required" as const };
+  if (!country) return { ok: false, reason: "country is required" as const };
+
+  const followers = Math.max(0, Math.round(input.followers ?? 0));
+  const tier = input.tier ?? tierFromFollowers(followers);
+
+  // 1) creator — (handle,platform) 재사용, 없으면 manual 태깅으로 신규.
+  let creatorId: string;
+  const { data: existingCreator, error: findErr } = await sb
+    .from("creators")
+    .select("id")
+    .eq("handle", handle)
+    .eq("platform", input.platform)
+    .maybeSingle();
+  if (findErr) return { ok: false, reason: findErr.message };
+  if (existingCreator) {
+    creatorId = existingCreator.id as string;
+  } else {
+    const { data: created, error } = await sb
+      .from("creators")
+      .insert({
+        handle,
+        name: input.name?.trim() || null,
+        platform: input.platform,
+        country,
+        followers,
+        tier,
+        email: input.email?.trim() || null,
+        manager,
+        source_system: "manual",
+        in_legacy_list: false,
+      })
+      .select("id")
+      .single();
+    if (error) return { ok: false, reason: error.message };
+    creatorId = created.id as string;
+  }
+
+  // 2) campaign — type별 재사용(ETL: "Seeding {type}", brand zipiel), 없으면 생성.
+  const campaignType: CampaignType = input.campaignType || "Gifted";
+  let campaignId: string | undefined;
+  const { data: camp } = await sb.from("campaigns").select("id").eq("type", campaignType).limit(1).maybeSingle();
+  if (camp) {
+    campaignId = camp.id as string;
+  } else {
+    const { data: c, error } = await sb
+      .from("campaigns")
+      .insert({ name: `Seeding ${campaignType}`, type: campaignType, brand: "zipiel" })
+      .select("id")
+      .single();
+    if (error) return { ok: false, reason: error.message };
+    campaignId = c.id as string;
+  }
+
+  // 3) collaboration — manual 태깅. listed_date=오늘. status 기본 Listing.
+  const today = new Date().toISOString().slice(0, 10);
+  const externalRef = `manual:${globalThis.crypto.randomUUID()}`;
+  const { data: collab, error } = await sb
+    .from("collaborations")
+    .insert({
+      creator_id: creatorId,
+      campaign_id: campaignId,
+      status: input.status ?? "Listing",
+      manager,
+      content_fee_krw: input.contentFeeKrw ?? null,
+      notes: input.notes?.trim() || null,
+      listed_date: today,
+      source_system: "manual",
+      external_ref: externalRef,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, reason: error.message };
+
+  revalidateTag("collabs", "max");
+  revalidatePath("/");
+  revalidatePath("/board");
+  return { ok: true as const, id: collab.id as string };
 }

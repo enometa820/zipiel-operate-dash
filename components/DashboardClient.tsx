@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Layers } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import type { CollaborationView } from "@/lib/data";
 import { updateCollaboration, type CollaborationPatch } from "@/app/actions";
 import { type Country } from "@/lib/types";
@@ -12,6 +12,7 @@ import { useLocalStorage } from "@/lib/use-local-storage";
 import { NavTabs } from "./NavTabs";
 import { Sidebar } from "./board/Sidebar";
 import { GridToolbar } from "./board/GridToolbar";
+import { NewEntryDialog } from "./board/NewEntryDialog";
 import { WorkGrid } from "./WorkGrid";
 import { DetailPanel } from "./DetailPanel";
 
@@ -32,6 +33,7 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
   const [filters, setFilters] = useState<GridFilters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editError, setEditError] = useState("");
+  const [showNew, setShowNew] = useState(false);
 
   const [prefsRaw, setPrefsRaw] = useLocalStorage<GridPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const prefs = useMemo(() => mergePrefs(prefsRaw), [prefsRaw]);
@@ -106,6 +108,14 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
         <div className="flex flex-wrap items-center gap-3 px-5 py-2.5">
           <GridToolbar prefs={prefs} onChange={setPrefsRaw} count={filtered.length} total={views.length} />
           <button
+            onClick={() => setShowNew(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            title="Add a creator & start a collaboration"
+          >
+            <Plus size={13} />
+            New entry
+          </button>
+          <button
             onClick={() => router.push(loadedAll ? "/board" : "/board?all=1")}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-strong)] px-2.5 py-1.5 text-xs text-[var(--muted)] hover:bg-[var(--panel-2)]"
             title={loadedAll ? "Show active pipeline only (faster)" : "Load discovery pool (Sourcing) too"}
@@ -130,6 +140,17 @@ export function DashboardClient({ initial, loadedAll = true, live = false }: { i
         >
           {editError} · dismiss
         </button>
+      )}
+
+      {showNew && (
+        <NewEntryDialog
+          managers={managers}
+          onClose={() => setShowNew(false)}
+          onCreated={() => {
+            setShowNew(false);
+            router.refresh();
+          }}
+        />
       )}
 
       <DetailPanel co={selected} onClose={() => setSelectedId(null)} onEdit={onEdit} />

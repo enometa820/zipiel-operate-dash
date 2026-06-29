@@ -90,13 +90,16 @@ const VIEW_ORDER = [
   { col: "id", asc: true },
 ];
 // Sourcing(발굴 풀) 제외 — 작업면 기본 로드. 14k → ~1.9k로 줄여 빠르고 캐시 가능.
-const NOT_SOURCING = (q: any) => q.not("status", "in", '("Listing","Contact Completed")');
+// 단, 작업자가 앱에서 직접 추가한 행(source_system='manual')은 status가 Listing이라도
+// 항상 보여야 한다 — "방금 추가했는데 사라졌다"를 막는다(발굴 풀 legacy와 구분).
+const NOT_SOURCING = (q: any) =>
+  q.or('source_system.eq.manual,status.not.in.("Listing","Contact Completed")');
 
 async function rawViews(includeSourcing: boolean): Promise<CollaborationView[]> {
   const sb = createServerClient();
   if (!sb) {
     const m = mock.getCollaborationViews();
-    return includeSourcing ? m : m.filter((v) => STATUS_PHASE[v.status] !== "Sourcing");
+    return includeSourcing ? m : m.filter((v) => STATUS_PHASE[v.status] !== "Sourcing" || v.sourceSystem === "manual");
   }
   const rows = await pagedAll(sb, SELECT, VIEW_ORDER, includeSourcing ? undefined : NOT_SOURCING);
   if (rows.length) return rows.map(mapCollab);

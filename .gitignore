@@ -76,3 +76,6 @@ supabase/.branches/
 
 .vercel
 __pycache__/
+
+# night-loop scratch workbench
+work/
