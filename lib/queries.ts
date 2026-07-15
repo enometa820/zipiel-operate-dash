@@ -168,7 +168,10 @@ async function rawFacts(): Promise<CollabFact[]> {
   }));
 }
 
-const getFacts = unstable_cache(rawFacts, ["collab-facts"], { tags: ["collabs"], revalidate: 300 });
+// facts 원본(14k행 ≈3.9MB)은 캐시하지 않는다 — unstable_cache 2MB 상한을 넘겨 set이
+// 실패하면 Overview/status가 잘못된 폴백값을 렌더한다. 대신 아래 집계 함수들이
+// "작은 결과 객체"를 각자 캐시한다(fetchStats·fetchOverviewStats).
+const getFacts = rawFacts;
 
 export async function fetchCollaborationView(id: string): Promise<CollaborationView | undefined> {
   const sb = createServerClient();
@@ -209,7 +212,7 @@ export interface Stats {
   withPostUrl: number;
 }
 
-export async function fetchStats(): Promise<Stats> {
+async function computeStats(): Promise<Stats> {
   const facts = await getFacts();
   const byPhase: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
@@ -239,6 +242,8 @@ export async function fetchStats(): Promise<Stats> {
     withPostUrl,
   };
 }
+// 집계 결과(작은 객체)만 캐시 — 편집 시 revalidateTag("collabs")로 무효화.
+export const fetchStats = unstable_cache(computeStats, ["stats-agg"], { tags: ["collabs"], revalidate: 300 });
 
 // ---- Logistics / products / provenance (AC-7) — /status 노출용 최소 집계 ----
 
@@ -352,7 +357,7 @@ export interface OverviewStats {
   byCampaignActive: Record<string, number>;
 }
 
-export async function fetchOverviewStats(): Promise<OverviewStats> {
+async function computeOverviewStats(): Promise<OverviewStats> {
   const facts = await getFacts();
   const creatorIds = new Set<string>();
   let discoveryPool = 0,
@@ -473,6 +478,8 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     byCampaignActive,
   };
 }
+// 집계 결과(작은 객체)만 캐시 — 14k 원본 캐시 시 2MB 상한 초과 문제를 회피.
+export const fetchOverviewStats = unstable_cache(computeOverviewStats, ["overview-agg"], { tags: ["collabs"], revalidate: 300 });
 
 export async function fetchPayment(collaborationId: string): Promise<Payment | undefined> {
   const sb = createServerClient();
