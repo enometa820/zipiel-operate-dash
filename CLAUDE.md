@@ -15,7 +15,7 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 시트 CSV(`research/sheet-snapshot/`) → `scripts/etl_seeding.py`(정규화·매핑) → Supabase Postgres → `lib/queries.ts`(fetch + snake→camel 매핑 + env 없으면 `lib/data.ts` 목 폴백) → 서버 컴포넌트 → 클라이언트(`components/`). 상태 쓰기 = `app/actions.ts` server action(service key)이 DB update → 트리거가 `collaboration_status_history` 자동 기록.
 
 - **라우트**: `/`(칸반·테이블 대시보드) · `/status`(한글 개발현황) · `/collaborations/[id]`(Deal Page) · `/login`. 탭 전환 = `components/NavTabs.tsx`.
-- **인증**: `middleware.ts` 쿠키 게이트(미인증 → /login). id/pw = env `APP_USER`·`APP_PASS`(둘 다 `theframeless!`), 세션 = `APP_SESSION_SECRET`. ⚠️ playwright는 secure 쿠키 미유지로 프로덕션 로그인 자동검증 불가 — **로컬 빌드본(`npx next start`)으로 검증**(서버 로그 `POST /login 303 → GET / 200`이 성공 신호).
+- **인증**: `middleware.ts` 쿠키 게이트(미인증 → /login). id/pw = env `APP_USER`·`APP_PASS`(값은 vault `~/.vault/zipiel/` · Vercel env, 문서에 쓰지 않는다), 세션 = `APP_SESSION_SECRET`. ⚠️ playwright는 secure 쿠키 미유지로 프로덕션 로그인 자동검증 불가 — **로컬 빌드본(`npx next start`)으로 검증**(서버 로그 `POST /login 303 → GET / 200`이 성공 신호).
 - **데이터 모델**: `creators`(마스터) → `campaigns` → `collaborations`(현재 상태) → `collaboration_status_history`(전이) → `content_pieces`(성과) → `payments`(세금). 타입 정본 = `lib/types.ts`. dev HMR 워커가 크래시("Jest worker")하면 코드 문제 아닌 인프라 — 빌드/빌드본으로 확인.
 
 ## 스택·구조
@@ -42,7 +42,7 @@ north star: zipiel 마케팅 오퍼레이션 — 글로벌 인플루언서 시�
 
 - **Vercel 배포(2026-06-25)**: 프로젝트 `zipiel-operate-dash`(scope `tototal5542-6672s-projects`), GitHub 연결됨(push 시 자동 배포). 환경변수 3개(SUPABASE URL·anon·service) production/preview/development 등록.
 - 재배포 = `vercel --prod --yes`. production URL = `vercel ls zipiel-operate-dash --prod`.
-- **Deployment Protection off** — 앱 자체 인증(`middleware.ts`)으로 대체함(vault `VERCEL_TOKEN`으로 API `ssoProtection=null`). 매니저는 Vercel 계정 없이 앱 로그인(`theframeless!`)만으로 접속. 공유 URL = `vercel ls zipiel-operate-dash --prod`의 최신 Ready.
+- **Deployment Protection off** — 앱 자체 인증(`middleware.ts`)으로 대체함(vault `VERCEL_TOKEN`으로 API `ssoProtection=null`). 매니저는 Vercel 계정 없이 앱 로그인(vault 값)만으로 접속. 공유 URL = `vercel ls zipiel-operate-dash --prod`의 최신 Ready.
 
 ## 글로벌 룰
 
